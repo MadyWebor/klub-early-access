@@ -2,7 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-export default function Signin() {
+export default function Signup() {
   return (
     <div className="w-full h-full flex flex-col items-center justify-center overflow-hidden">
       <div className="w-[90%] lg:w-[50%] h-[80%] flex flex-col gap-[48px]">
@@ -37,9 +37,9 @@ export default function Signin() {
           {/* Right Side */}
           <div className="w-[60%] h-full rounded-[20px] bg-[url('/papyrus.png')] bg-center flex flex-col items-center justify-center">
             <div className="w-[90%] h-[90%] flex flex-col text-[#2A2A2A] relative ">
-              <span className="font-[600] text-[26px]"><span className="text-[#0A5DBC]">Sign in </span>to your account</span>
+              <span className="font-[600] text-[26px]">Let&apos;s <span className="text-[#0A5DBC]">Create your account</span></span>
               <span className="text-[16px] mt-[12px] w-[400px]">
-                <span className="text-[#787878] font-[500]">Welcome!</span>
+                <span className="text-[#787878] font-[500]">The first step to setting up your early-access waitlist</span>
               </span>
               <div className="flex justify-center w-[100%] h-[50px] bg-[#FFFFFF] border border-[#ECECEC] mt-[26px] rounded-[15px] cursor-pointer hover:opacity-85">
                 <div className="flex flex-col items-center justify-center">
@@ -50,7 +50,7 @@ export default function Signin() {
                 </div>
               </div>
               <span className="text-[#787878] mt-[16px]">
-                <span className="font-[500] text-[14px]">Don’t have an account, <Link href={'/signup'} className="text-[#0A5DBC] underline">Sign up</Link></span>
+                <span className="font-[500] text-[14px]">Already have an account, <Link href={'/signin'} className="text-[#0A5DBC] underline">Sign in</Link></span>
               </span>
               <span className="text-[#787878] absolute bottom-0 border-t-1 border-[#DCDCDC] pt-[26px]">
                 <span className="text-[14px] font-[500]">
