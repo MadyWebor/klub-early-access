@@ -4,3 +4,4 @@
 
 [[plugins]]
   package = "@netlify/next"
+  package = "/plugins/netlify-plugin-hello-world"
