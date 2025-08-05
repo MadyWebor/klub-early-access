@@ -584,6 +584,11 @@
   resolved "https://registry.yarnpkg.com/@netlify/next/-/next-1.4.9.tgz#50e7bc72f9c5897ffdf1ec10d585a1a3ea15048a"
   integrity sha512-lrbY+CEhS9x0jV7oXVYi/rqxZ6ht5KeLGNZsgIPI34kpDaBuD/EfsyKa28BWeSrFalxRZmkMxQYRSTa82v3roQ==
 
+"@netlify/plugin-nextjs@^5.12.0":
+  version "5.12.0"
+  resolved "https://registry.yarnpkg.com/@netlify/plugin-nextjs/-/plugin-nextjs-5.12.0.tgz#7345d5e5e827a25ae905d7e4bddd8794366cea73"
+  integrity sha512-SXQY/nCiSOSAZWNls/DQxrICldUR7PHSMUw2J2/ZejH1dk12Vwd3+SzSihHrRW9PNcErZkC2g3seM7bWZlvBRg==
+
 "@next/env@15.4.5":
   version "15.4.5"
   resolved "https://registry.npmjs.org/@next/env/-/env-15.4.5.tgz"
