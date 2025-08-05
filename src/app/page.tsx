@@ -1,8 +1,10 @@
 'use client';
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function Signin() {
+  const router = useRouter()
   return (
     <div className="w-full h-full min-h-screen flex flex-col items-center justify-center overflow-hidden bg-white">
       <div className="w-full max-w-[100vw] px-2 sm:px-6 md:px-8 lg:px-0 lg:w-[50%] h-full md:h-[80%] flex flex-col gap-8 md:gap-[48px] py-6 md:py-0">
@@ -42,7 +44,7 @@ export default function Signin() {
               <span className="text-[15px] md:text-[16px] mt-2 w-full max-w-[400px]">
                 <span className="text-[#787878] font-medium">Welcome!</span>
               </span>
-              <div className="flex justify-center items-center w-full h-[48px] md:h-[50px] bg-white border border-[#ECECEC] mt-6 rounded-[15px] cursor-pointer hover:opacity-85 transition-all">
+              <div className="flex justify-center items-center w-full h-[48px] md:h-[50px] bg-white border border-[#ECECEC] mt-6 rounded-[15px] cursor-pointer hover:opacity-85 transition-all" onClick={()=>router.push('/wait-list/creator-rt567jilo9')}>
                 <div className="flex items-center mr-3">
                   <Image src={'/google.png'} alt="google" width={36} height={24} />
                 </div>

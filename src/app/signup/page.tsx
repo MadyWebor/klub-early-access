@@ -1,8 +1,11 @@
 'use client';
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function Signup() {
+
+    const router = useRouter()
   return (
     <div className="w-full h-full min-h-screen flex flex-col items-center justify-center overflow-hidden bg-white">
       <div className="w-full max-w-[100vw] px-2 sm:px-6 md:px-8 lg:px-0 lg:w-[50%] h-full md:h-[80%] flex flex-col gap-8 md:gap-[48px] py-6 md:py-0">
@@ -37,10 +40,10 @@ export default function Signup() {
           <div className="w-full md:w-[60%] h-full md:h-full rounded-[20px] bg-[url('/papyrus.png')] flex flex-col items-center justify-center">
             <div className="w-[90%] md:w-[90%] h-[90%] md:h-[90%] flex flex-col text-[#2A2A2A] relative py-8 md:py-0">
               <span className="font-[600] text-[26px]">Let&apos;s <span className="text-[#0A5DBC]">Create your account</span></span>
-              <span className="text-[16px] mt-[12px] w-[400px]">
+              <span className="text-[16px] mt-[12px] w-[80%]">
                 <span className="text-[#787878] font-[500]">The first step to setting up your early-access waitlist</span>
               </span>
-              <div className="flex justify-center items-center w-full h-[48px] md:h-[50px] bg-white border border-[#ECECEC] mt-6 rounded-[15px] cursor-pointer hover:opacity-85 transition-all">
+              <div className="flex justify-center items-center w-full h-[48px] md:h-[50px] bg-white border border-[#ECECEC] mt-6 rounded-[15px] cursor-pointer hover:opacity-85 transition-all" onClick={()=>router.push('/profile')}>
                 <div className="flex items-center mr-3">
                   <Image src={'/google.png'} alt="google" width={36} height={24} />
                 </div>
