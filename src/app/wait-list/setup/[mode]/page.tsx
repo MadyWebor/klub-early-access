@@ -40,10 +40,10 @@ const WaitListSetup: React.FC = () => {
         <div className="w-full h-full flex flex-col overflow-hidden gap-6 sm:gap-8">
             {/* Header */}
             <div className="w-full flex justify-center border border-[#ECECEC] h-[90px] sm:h-[114px] px-2 sm:px-0">
-                <div className="w-full max-w-[1200px] h-full flex flex-wrap sm:flex-nowrap justify-between items-center gap-4 sm:gap-0">
+                <div className="w-[95%] max-w-[1200px] h-full flex flex-wrap sm:flex-nowrap justify-between items-center gap-4 sm:gap-0">
                     {/* Logo */}
                     <div className="flex flex-col items-center justify-center min-w-[70px]">
-                        <Image src="/klub-image.png" alt="klub" width={55} height={55} className="sm:w-[70px] sm:h-[70px]" />
+                        <img src="/klub-image.png" alt="klub" className="w-[75px] h-[30px]" />
                     </div>
                     {/* Title */}
                     <div className="flex flex-col items-center justify-center flex-1 min-w-0 text-center">
