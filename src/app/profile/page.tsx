@@ -1,8 +1,8 @@
 'use client';
 import Image from "next/image";
-import Link from "next/link";
-
+import { useRouter } from "next/navigation";
 export default function Profile() {
+  const router = useRouter()
   return (
     <div className="w-full min-h-screen flex flex-col items-center justify-center bg-white">
       <div className="w-full flex flex-col items-center justify-center px-2 sm:px-6 md:px-8 py-8">
@@ -20,7 +20,7 @@ export default function Profile() {
           </div>
 
           {/* Papyrus Container */}
-          <div className="w-full bg-[url('/papyrus.png')] bg-contain rounded-[20px] flex flex-col items-center shadow-md py-8 px-3 sm:px-6">
+          <div className="w-full bg-[url('/papyrus.png')] rounded-[20px] flex flex-col items-center shadow-md py-8 px-3 sm:px-6">
             <div className="w-full flex flex-col text-[#2A2A2A]">
               <span className="font-semibold text-[22px] sm:text-[26px]">
                 Let&apos;s <span className="text-[#0A5DBC]">Setup your profile</span>
@@ -59,7 +59,10 @@ export default function Profile() {
                   </button>
                 </div>
               </div>
-              <form className="w-full flex flex-col gap-3">
+              <form className="w-full flex flex-col gap-3" onSubmit={(e)=>{
+                e.preventDefault();
+                router.push('/wait-list/setup/course')
+                }}>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] sm:text-[14px] font-[500] text-[#444] opacity-60 mb-1" htmlFor="fullName">
                     Full name
