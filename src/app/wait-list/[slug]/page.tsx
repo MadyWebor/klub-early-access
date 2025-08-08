@@ -378,7 +378,7 @@ const WaitList: React.FC = () => {
                         "
                         >
                             <span className="text-[14px] sm:text-[15px] md:text-[16px] font-normal">
-                                What you'll get
+                                What you&apos;ll get
                             </span>
                         </div>
 
