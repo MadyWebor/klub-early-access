@@ -1,131 +1,189 @@
 'use client'
 
 import React from 'react';
+import { CiPlay1, CiStar } from "react-icons/ci";
+import { BsVectorPen } from "react-icons/bs";
+import { RiApps2Line } from "react-icons/ri";
+import { FaRegUserCircle, FaQuestionCircle } from "react-icons/fa";
+import { IoCheckmark } from "react-icons/io5";
+import { FaQuestion } from "react-icons/fa6";
 
 // --- Banner (Auto Carousel with arrows) ---
-const images = ['/wl1.jpg', '/wl2.jpg', '/wl3.jpg', '/wl4.jpg'];
+const SLIDES: Array<
+  | { type: "image"; src: string }
+  | { type: "video"; src: string } // YouTube embed URL
+> = [
+  { type: "image", src: "/wl1.jpg" },
+  { type: "video", src: "https://www.youtube.com/embed/fxx_E0ojKrc" }, // << your video
+  { type: "image", src: "/wl2.jpg" },
+  { type: "image", src: "/wl3.jpg" },
+  { type: "image", src: "/wl4.jpg" },
+];
 
 const SOCIALS = [
-  { label: 'Instagram', handle: 'dranjalicures', icon: '/insta.png', href: 'https://instagram.com/dranjalicures' },
-  { label: 'Facebook',  handle: 'dranjalicures', icon: '/facebook.png', href: 'https://facebook.com/dranjalicures' },
-  { label: 'LinkedIn',  handle: 'dranjalicures', icon: '/linkedin.png', href: 'https://linkedin.com/in/dranjalicures' },
-  { label: 'X',         handle: 'dranjalicures', icon: '/x.png', href: 'https://x.com/dranjalicures' },
-  { label: 'YouTube',   handle: 'dranjalicures', icon: '/youtube.png', href: 'https://youtube.com/@dranjalicures' },
+    { label: 'Instagram', handle: 'dranjalicures', icon: '/insta.png', href: 'https://instagram.com/dranjalicures' },
+    { label: 'Facebook', handle: 'dranjalicures', icon: '/facebook.png', href: 'https://facebook.com/dranjalicures' },
+    { label: 'LinkedIn', handle: 'dranjalicures', icon: '/linkedin.png', href: 'https://linkedin.com/in/dranjalicures' },
+    { label: 'X', handle: 'dranjalicures', icon: '/x.png', href: 'https://x.com/dranjalicures' },
+    { label: 'YouTube', handle: 'dranjalicures', icon: '/youtube.png', href: 'https://youtube.com/@dranjalicures' },
+];
+
+const FAQS = [
+    {
+        q: "Who is this course for?",
+        a: "Anyone struggling with acid reflux or gut issues who wants a structured, natural plan with step-by-step guidance."
+    },
+    {
+        q: "Do I need any prior knowledge?",
+        a: "No. The course is beginner-friendly with simple frameworks, templates, and weekly actions."
+    },
+    {
+        q: "How long do I get access?",
+        a: "Lifetime access, including future updates and added resources."
+    },
+    {
+        q: "Is there community or support?",
+        a: "Yes. You get access to community Q&A and mentor support during the program windows."
+    },
 ];
 
 function BannerCarousel() {
-    const wrapRef = React.useRef<HTMLDivElement | null>(null);
-    const [idx, setIdx] = React.useState(0);
-    const [isHover, setIsHover] = React.useState(false);
-    const positionsRef = React.useRef<number[]>([]);
-    const rafRef = React.useRef<number | null>(null);
-    const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const wrapRef = React.useRef<HTMLDivElement | null>(null);
+  const [idx, setIdx] = React.useState(0);
+  const [isHover, setIsHover] = React.useState(false);
+  const positionsRef = React.useRef<number[]>([]);
+  const rafRef = React.useRef<number | null>(null);
+  const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
-    // Compute slide positions on mount/resize
-    React.useEffect(() => {
-        const el = wrapRef.current;
-        if (!el) return;
+  // Compute positions
+  React.useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
 
-        const compute = () => {
-            const kids = Array.from(el.children) as HTMLElement[];
-            positionsRef.current = kids.map(k => k.offsetLeft);
-            if (positionsRef.current[idx] != null) {
-                el.scrollTo({ left: positionsRef.current[idx], behavior: 'instant' as ScrollBehavior });
-            }
-        };
-
-        compute();
-        const ro = new ResizeObserver(compute);
-        ro.observe(el);
-        const t = setTimeout(compute, 50);
-
-        return () => { ro.disconnect(); clearTimeout(t); };
-    }, [idx, images.length]);
-
-    // Track current index while user scrolls
-    React.useEffect(() => {
-        const el = wrapRef.current;
-        if (!el) return;
-
-        const onScroll = () => {
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-            rafRef.current = requestAnimationFrame(() => {
-                const pos = el.scrollLeft;
-                const pts = positionsRef.current;
-                if (!pts.length) return;
-                let nearest = 0, best = Math.abs(pos - pts[0]);
-                for (let i = 1; i < pts.length; i++) {
-                    const d = Math.abs(pos - pts[i]);
-                    if (d < best) { best = d; nearest = i; }
-                }
-                setIdx(nearest);
-            });
-        };
-
-        el.addEventListener('scroll', onScroll, { passive: true });
-        return () => {
-            el.removeEventListener('scroll', onScroll);
-            if (rafRef.current) cancelAnimationFrame(rafRef.current);
-        };
-    }, []);
-
-    // Autoplay (pause on hover)
-    React.useEffect(() => {
-        if (isHover) return;
-        const el = wrapRef.current;
-        if (!el || !positionsRef.current.length) return;
-
-        intervalRef.current = setInterval(() => {
-            const next = (idx + 1) % images.length;
-            const left = positionsRef.current[next] ?? 0;
-            el.scrollTo({ left, behavior: 'smooth' });
-        }, 3000);
-
-        return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-    }, [idx, isHover, images.length]);
-
-    const goTo = (i: number) => {
-        const el = wrapRef.current; if (!el) return;
-        const n = (i + images.length) % images.length;
-        const left = positionsRef.current[n] ?? 0;
-        el.scrollTo({ left, behavior: 'smooth' });
-        setIdx(n);
+    const compute = () => {
+      const kids = Array.from(el.children) as HTMLElement[];
+      positionsRef.current = kids.map(k => k.offsetLeft);
+      if (positionsRef.current[idx] != null) {
+        el.scrollTo({ left: positionsRef.current[idx], behavior: "instant" as ScrollBehavior });
+      }
     };
 
-    return (
-        <div className="w-full relative">
-            {/* Track */}
-            <div
-                ref={wrapRef}
-                className="
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(el);
+    const t = setTimeout(compute, 50);
+    return () => { ro.disconnect(); clearTimeout(t); };
+  }, [idx, SLIDES.length]);
+
+  // Track current index while user scrolls
+  React.useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+
+    const onScroll = () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        const pos = el.scrollLeft;
+        const pts = positionsRef.current;
+        if (!pts.length) return;
+        let nearest = 0, best = Math.abs(pos - pts[0]);
+        for (let i = 1; i < pts.length; i++) {
+          const d = Math.abs(pos - pts[i]);
+          if (d < best) { best = d; nearest = i; }
+        }
+        setIdx(nearest);
+      });
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
+
+  // Autoplay (pause on hover OR when on a video slide)
+  React.useEffect(() => {
+    if (isHover) return;
+    const el = wrapRef.current;
+    if (!el || !positionsRef.current.length) return;
+
+    const isVideo = SLIDES[idx]?.type === "video";
+    if (isVideo) return; // don't auto-advance while video is in view
+
+    intervalRef.current = setInterval(() => {
+      const next = (idx + 1) % SLIDES.length;
+      const left = positionsRef.current[next] ?? 0;
+      el.scrollTo({ left, behavior: "smooth" });
+    }, 3000);
+
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [idx, isHover, SLIDES.length]);
+
+  const goTo = (i: number) => {
+    const el = wrapRef.current; if (!el) return;
+    const n = (i + SLIDES.length) % SLIDES.length;
+    const left = positionsRef.current[n] ?? 0;
+    el.scrollTo({ left, behavior: "smooth" });
+    setIdx(n);
+  };
+
+  return (
+    <div className="w-full relative">
+      {/* Track */}
+      <div
+        ref={wrapRef}
+        className="
           flex w-full overflow-x-auto scroll-smooth
           gap-3 sm:gap-4 md:gap-6
           justify-start px-3 sm:px-4
           snap-x snap-mandatory
           hide-scrollbar
         "
-                onMouseEnter={() => setIsHover(true)}
-                onMouseLeave={() => setIsHover(false)}
+        onMouseEnter={() => setIsHover(true)}
+        onMouseLeave={() => setIsHover(false)}
+      >
+        {SLIDES.map((slide, i) => (
+          slide.type === "image" ? (
+            <div
+              key={`img-${slide.src}-${i}`}
+              className="
+                shrink-0 rounded-[20px] bg-no-repeat bg-center bg-cover
+                snap-start
+                min-w-[70%] sm:min-w-[265px] md:min-w-[320px] lg:min-w-[360px]
+                aspect-[265/227]
+              "
+              style={{ backgroundImage: `url(${slide.src})` }}
+            />
+          ) : (
+            <div
+              key={`vid-${slide.src}-${i}`}
+              className="
+                shrink-0 snap-start
+                min-w-[70%] sm:min-w-[265px] md:min-w-[320px] lg:min-w-[360px]
+                aspect-[265/227]
+                rounded-[20px] overflow-hidden bg-black
+              "
             >
-                {images.map((src) => (
-                    <div
-                        key={src}
-                        className="
-              shrink-0 rounded-[20px] bg-no-repeat bg-center bg-cover
-              snap-start
-              min-w-[70%] sm:min-w-[265px] md:min-w-[320px] lg:min-w-[360px]
-              aspect-[265/227]
-            "
-                        style={{ backgroundImage: `url(${src})` }}
-                    />
-                ))}
+              <iframe
+                className="w-full h-full"
+                src={`${slide.src}?rel=0`}
+                title="Course video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                allowFullScreen
+                loading="lazy"
+              />
             </div>
+          )
+        ))}
+      </div>
 
-            {/* Left Arrow */}
-            <button
-                aria-label="Previous slide"
-                onClick={() => goTo(idx - 1)}
-                className="
+      {/* Left Arrow */}
+      <button
+        aria-label="Previous slide"
+        onClick={() => goTo(idx - 1)}
+        className="
           absolute left-2 top-1/2 -translate-y-1/2
           h-8 w-8 sm:h-9 sm:w-9
           rounded-full bg-black/35 hover:bg-black/55
@@ -133,18 +191,17 @@ function BannerCarousel() {
           flex items-center justify-center
           focus:outline-none focus:ring-2 focus:ring-black/30
         "
-            >
-                {/* chevron-left */}
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M15 18l-6-6 6-6" />
-                </svg>
-            </button>
+      >
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M15 18l-6-6 6-6" />
+        </svg>
+      </button>
 
-            {/* Right Arrow */}
-            <button
-                aria-label="Next slide"
-                onClick={() => goTo(idx + 1)}
-                className="
+      {/* Right Arrow */}
+      <button
+        aria-label="Next slide"
+        onClick={() => goTo(idx + 1)}
+        className="
           absolute right-2 top-1/2 -translate-y-1/2
           h-8 w-8 sm:h-9 sm:w-9
           rounded-full bg-black/35 hover:bg-black/55
@@ -152,20 +209,25 @@ function BannerCarousel() {
           flex items-center justify-center
           focus:outline-none focus:ring-2 focus:ring-black/30
         "
-            >
-                {/* chevron-right */}
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M9 6l6 6-6 6" />
-                </svg>
-            </button>
-        </div>
-    );
+      >
+        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+      </button>
+    </div>
+  );
 }
+
 
 
 
 const WaitList: React.FC = () => {
 
+    const [openIdx, setOpenIdx] = React.useState<number | null>(null);
+
+    const toggle = (i: number) => {
+        setOpenIdx(prev => (prev === i ? null : i));
+    };
 
     const FEATURES = [
         'Step-wise learning on AI + no-code automation',
@@ -198,8 +260,8 @@ const WaitList: React.FC = () => {
         </div>
 
         {/* Main */}
-        <div className='w-screen h-[calc(100%-80px-55px)] sm:h-[calc(100%-113px-85px)] flex justify-center pb-[20px]'>
-            <div className='w-[95%] xl:w-[60%] h-full py-[30px] flex flex-col overflow-x-hidden overflow-y-auto hide-scrollbar'>
+        <div className='w-screen h-[calc(100%-80px)] sm:h-[calc(100%-113px)] flex flex-col items-center overflow-x-hidden overflow-y-auto hide-scrollbar'>
+            <div className='w-[95%] xl:w-[60%] h-auto py-[30px] flex flex-col'>
 
                 {/* Banner */}
                 <BannerCarousel />
@@ -242,7 +304,7 @@ const WaitList: React.FC = () => {
                     <span
                         className="
                         font-semibold
-                        text-[28px] sm:text-[40px] md:text-[56px]
+                        text-[46px] sm:text-[40px] md:text-[56px]
                         leading-tight sm:leading-snug md:leading-[1.2]
                         w-full sm:w-[80%] md:w-[65%]
                         text-center xl:text-left
@@ -256,7 +318,7 @@ const WaitList: React.FC = () => {
                 <div className="w-full flex justify-center mt-3 sm:mt-[15px] text-[#787878] px-4">
                     <span
                         className="
-                        text-[14px] sm:text-[16px] md:text-[18px]
+                        text-[16px] sm:text-[16px] md:text-[18px]
                         font-normal
                         text-center
                         w-full sm:w-[70%] md:w-[50%]
@@ -298,15 +360,51 @@ const WaitList: React.FC = () => {
                                 text-sm sm:text-[14px] font-normal
                                 flex justify-center items-center
                                 rounded-full shadow-md hover:bg-[#094c9a] transition
+                                gap-2
                                 "
                             >
+                                <BsVectorPen className='w-[18px] h-[18px]' />
                                 Join for Rs. 50
                             </button>
                         </div>
                     </div>
                 </div>
-                <div className='w-full flex justify-center mt-[10px] text-[#686868]'>
-                    <span className='text-[12px] font-[400]'>Trusted by 500+ patients</span>
+
+                <div className="w-full flex justify-center mt-[10px]">
+                    <div className="flex items-center gap-3">
+                        {/* Overlapping avatars */}
+                        <div className="flex items-center">
+                            {/* Avatar 1 */}
+                            <span className="relative inline-flex h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-yellow-400">
+                                <img
+                                    src="/user.jpg"
+                                    alt=""
+                                    className="absolute h-[85%] w-[85%] inset-0 m-[3px] rounded-full object-cover ring-2 ring-white"
+                                />
+                            </span>
+                            {/* Avatar 2 */}
+                            <span className="relative inline-flex -ml-2 h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-cyan-400">
+                                <img
+                                    src="/user.jpg"
+                                    alt=""
+                                    className="absolute h-[85%] w-[85%] inset-0 m-[3px] rounded-full object-cover ring-2 ring-white"
+                                />
+                            </span>
+                            {/* Avatar 3 */}
+                            <span className="relative inline-flex -ml-2 h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-red-500">
+                                <img
+                                    src="/user.jpg"
+                                    alt=""
+                                    className="absolute h-[85%] w-[85%] inset-0 m-[3px] rounded-full object-cover ring-2 ring-white"
+                                />
+                            </span>
+                        </div>
+
+                        {/* Text */}
+                        <span className="text-[#686868] text-[12px] sm:text-[14px] font-medium">
+                            Trusted by 500+ patients
+                        </span>
+                    </div>
                 </div>
 
                 <div className='w-full flex justify-center mt-[60px]'>
@@ -324,6 +422,7 @@ const WaitList: React.FC = () => {
                             w-fit
                         "
                         >
+                            <CiStar className='w-[18px] h-[18px] fill-[#0A5DBC] stroke-1 stroke-[#0A5DBC]' />
                             <span className="text-[14px] sm:text-[15px] md:text-[16px] font-normal">
                                 About
                             </span>
@@ -337,7 +436,7 @@ const WaitList: React.FC = () => {
                                 text-[18px] sm:text-[24px] md:text-[36px]
                                 font-semibold
                                 leading-snug sm:leading-normal md:leading-[1.3]
-                                text-center sm:text-left
+                                 sm:text-left
                                 "
                             >
                                 Learn how to fix acid reflux naturally with simple diet, lifestyle, and gut-healing strategies. This course helps you find lasting relief without relying on medication.
@@ -377,6 +476,7 @@ const WaitList: React.FC = () => {
                             mt-[70px]
                         "
                         >
+                            <RiApps2Line className='w-[18px] h-[18px] fill-[#0A5DBC]' />
                             <span className="text-[14px] sm:text-[15px] md:text-[16px] font-normal">
                                 What you&apos;ll get
                             </span>
@@ -403,7 +503,8 @@ const WaitList: React.FC = () => {
         "
                                     >
                                         {/* Check icon */}
-                                        <span className="shrink-0 mt-0.5 text-[#094c9a] leading-none">✔</span>
+                                        {/* <span className="shrink-0 mt-0.5 text-[#094c9a] leading-none">✔</span> */}
+                                        <IoCheckmark className='w-[18px] h-[18px] fill-[#0A5DBC] stroke-3 stroke-[#0A5DBC]' />
 
                                         {/* Text */}
                                         <span className="text-[#000] font-[500] leading-relaxed">
@@ -411,6 +512,92 @@ const WaitList: React.FC = () => {
                                         </span>
                                     </div>
                                 ))}
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col mt-[30px] w-full">
+                            {/* Chip heading (optional, matches your style) */}
+                            <div
+                                className="
+          inline-flex items-center
+          h-8 sm:h-9 md:h-[35px]
+          px-3 sm:px-[10px] md:px-[12px]
+          py-1 sm:py-1.5 md:py-[6px]
+          bg-white border border-[#ECECEC]
+          rounded-[30px]
+          gap-1.5 sm:gap-2 md:gap-[6px]
+          shadow-[0px_8px_16px_0px_#2A2A2A0D]
+          w-fit
+          mt-[30px]
+        "
+                            >
+                                <FaQuestion className="w-[16px] h-[16px] fill-[#0A5DBC] stroke-1 stroke-[#0A5DBC]" />
+                                <span className="text-[14px] sm:text-[15px] md:text-[16px] font-normal">FAQs</span>
+                            </div>
+
+                            {/* Grid like FEATURES */}
+                            <div
+                                className="
+    grid grid-cols-1 sm:grid-cols-2
+    gap-3 sm:gap-4 mt-[15px]
+    items-start
+  "
+                                role="list"
+                            >
+                                {FAQS.map(({ q, a }, i) => {
+                                    const isOpen = openIdx === i;
+                                    return (
+                                        <div
+                                            key={q}
+                                            role="listitem"
+                                            className="rounded-[20px] border border-[#ECECEC] bg-white p-0 overflow-hidden self-start"
+
+                                        >
+                                            {/* Header button */}
+                                            <button
+                                                type="button"
+                                                aria-expanded={isOpen}
+                                                onClick={() => toggle(i)}
+                                                className="
+          w-full flex items-start gap-3 sm:gap-4
+          p-4 sm:p-5
+          text-left
+        "
+                                            >
+                                                {/* Caret */}
+                                                <span
+                                                    className={`
+            shrink-0 mt-1 inline-flex h-6 w-6 items-center justify-center
+            rounded-full border border-[#ECECEC] bg-white
+            transition-transform
+            ${isOpen ? 'rotate-90' : 'rotate-0'}
+          `}
+                                                >
+                                                    <CiPlay1 className="h-4 w-4" />
+                                                </span>
+
+                                                {/* Question text */}
+                                                <span className="text-[#000] text-[15px] sm:text-[16px] md:text-[16px] font-[600] leading-snug">
+                                                    {q}
+                                                </span>
+                                            </button>
+
+                                            {/* Answer */}
+                                            <div
+                                                className={`
+          transition-[max-height,opacity] duration-300 ease-out
+          ${isOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}
+        `}
+                                            >
+                                                <div className="px-4 sm:px-5 pb-4 sm:pb-5 pt-0">
+                                                    <p className="text-[#787878] text-[14px] sm:text-[15px] leading-relaxed">
+                                                        {a}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -428,48 +615,48 @@ const WaitList: React.FC = () => {
                             mt-[70px]
                         "
                         >
+                            <FaRegUserCircle className='w-[18px] h-[18px] fill-[#0A5DBC]' />
                             <span className="text-[14px] sm:text-[15px] md:text-[16px] font-normal">
                                 Socials
                             </span>
                         </div>
 
-<div className="w-full flex flex-wrap gap-2 sm:gap-3 md:gap-4 mt-[15px]">
-  {SOCIALS.map(({ label, handle, icon, href }) => (
-    <a
-      key={label}
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="
+                        <div className="w-full grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 md:gap-4 mt-[15px]">
+                            {SOCIALS.map(({ label, handle, icon, href }) => (
+                                <a
+                                    key={label}
+                                    href={href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="
         flex items-center gap-3 sm:gap-4
         border border-[#ECECEC] 
         rounded-[30px]
         px-4 py-3 sm:px-5 sm:py-4
         hover:shadow-[0px_8px_16px_0px_#2A2A2A0D] transition
       "
-    >
-      {/* Icon bubble */}
-      <div className="flex items-center justify-center bg-white w-12 h-12 sm:w-14 sm:h-14 rounded-full border border-[#ECECEC]">
-        <img src={icon} alt={label} className="w-5 h-5 sm:w-6 sm:h-6" />
-      </div>
+                                >
+                                    {/* Icon bubble */}
+                                    <div className="flex items-center justify-center bg-white w-12 h-12 sm:w-14 sm:h-14 rounded-full border border-[#ECECEC]">
+                                        <img src={icon} alt={label} className="w-5 h-5 sm:w-6 sm:h-6" />
+                                    </div>
 
-      {/* Text */}
-      <div className="flex flex-col leading-tight">
-        <span className="text-[15px] sm:text-[16px] font-[500] text-black">{label}</span>
-        <span className="text-[#787878] text-[12px] sm:text-[13px] font-[400] truncate max-w-[40vw] sm:max-w-[20vw] md:max-w-none">
-          {handle}
-        </span>
-      </div>
-    </a>
-  ))}
-</div>
+                                    {/* Text */}
+                                    <div className="flex flex-col leading-tight">
+                                        <span className="text-[15px] sm:text-[16px] font-[500] text-black">{label}</span>
+                                        <span className="text-[#787878] text-[12px] sm:text-[13px] font-[400] truncate max-w-[40vw] sm:max-w-[20vw] md:max-w-none">
+                                            {handle}
+                                        </span>
+                                    </div>
+                                </a>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div className="w-screen flex flex-col items-center justify-center h-[55px] sm:h-[85px]  shadow-[0px_2px_20px_0px_#2A2A2A0D] bg-[#F6F6F6] text-[#787878]">
-                                    @2025, Klub
+            <div className="w-screen flex flex-col items-center justify-center py-[35px] shadow-[0px_2px_20px_0px_#2A2A2A0D] bg-[#F6F6F6] text-[#787878] border-t border-[#ECECEC]">
+                @2025, Klub
+            </div>
         </div>
     </div >
 }
