@@ -20,8 +20,11 @@ const Dashboard: React.FC = () => {
         <div className="w-full flex border border-[#ECECEC] h-[70px] sm:h-[80px] md:h-[85px] justify-center">
             <div className="w-[95%] sm:w-[90%] md:w-[85%] flex">
                 <div className="flex flex-col justify-center w-full">
-                    <span className="text-[16px] sm:text-[18px] md:text-[20px] font-[600]">
+                    <span className="text-[16px] sm:text-[18px] md:text-[20px] font-[600] hidden sm:block">
                         Home
+                    </span>
+                    <span className="text-[20px] sm:text-[22px] font-[700] italic text-[#111] block sm:hidden">
+                        Klub
                     </span>
                 </div>
             </div>
@@ -197,7 +200,7 @@ const Dashboard: React.FC = () => {
     "
                     >
                         {/* Brand */}
-                        <span className="text-[20px] sm:text-[22px] font-[700] italic text-[#111]">
+                        <span className="text-[20px] sm:text-[22px] font-[700] italic text-[#111] hidden sm:block">
                             Klub
                         </span>
 
@@ -237,7 +240,7 @@ const Dashboard: React.FC = () => {
           border-[#ECECEC] bg-[#fff] text-[#666]
           hover:bg-[#EFEFF0] transition
         "
-        onClick={()=>router.push('/profile')}
+                                onClick={() => router.push('/profile')}
 
                             >
                                 {/* icon: user circle */}
@@ -247,7 +250,7 @@ const Dashboard: React.FC = () => {
                                 </svg>
                                 Profile
                             </button>
-                        <span className="hidden sm:block h-6 w-px bg-[#E7E7E8]" />
+                            <span className="hidden sm:block h-6 w-px bg-[#E7E7E8]" />
 
                             {/* Logout (danger) */}
                             <button
@@ -259,7 +262,7 @@ const Dashboard: React.FC = () => {
           border-[#FFD3D7] text-[#E53935] bg-white
           hover:bg-[#FFF5F5] transition
         "
-        onClick={()=>router.push('/signin')}
+                                onClick={() => router.push('/signin')}
                             >
                                 {/* icon: sign-out arrow */}
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
