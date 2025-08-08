@@ -4,21 +4,10 @@ import React from 'react';
 import { CiPlay1, CiStar } from "react-icons/ci";
 import { BsVectorPen } from "react-icons/bs";
 import { RiApps2Line } from "react-icons/ri";
-import { FaRegUserCircle, FaQuestionCircle } from "react-icons/fa";
+import { FaRegUserCircle } from "react-icons/fa";
 import { IoCheckmark } from "react-icons/io5";
 import { FaQuestion } from "react-icons/fa6";
-
-// --- Banner (Auto Carousel with arrows) ---
-const SLIDES: Array<
-  | { type: "image"; src: string }
-  | { type: "video"; src: string } // YouTube embed URL
-> = [
-  { type: "image", src: "/wl1.jpg" },
-  { type: "video", src: "https://www.youtube.com/embed/fxx_E0ojKrc" }, // << your video
-  { type: "image", src: "/wl2.jpg" },
-  { type: "image", src: "/wl3.jpg" },
-  { type: "image", src: "/wl4.jpg" },
-];
+import BannerCarousel from './Carousel';
 
 const SOCIALS = [
     { label: 'Instagram', handle: 'dranjalicures', icon: '/insta.png', href: 'https://instagram.com/dranjalicures' },
@@ -46,179 +35,6 @@ const FAQS = [
         a: "Yes. You get access to community Q&A and mentor support during the program windows."
     },
 ];
-
-function BannerCarousel() {
-  const wrapRef = React.useRef<HTMLDivElement | null>(null);
-  const [idx, setIdx] = React.useState(0);
-  const [isHover, setIsHover] = React.useState(false);
-  const positionsRef = React.useRef<number[]>([]);
-  const rafRef = React.useRef<number | null>(null);
-  const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-
-  // Compute positions
-  React.useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-
-    const compute = () => {
-      const kids = Array.from(el.children) as HTMLElement[];
-      positionsRef.current = kids.map(k => k.offsetLeft);
-      if (positionsRef.current[idx] != null) {
-        el.scrollTo({ left: positionsRef.current[idx], behavior: "instant" as ScrollBehavior });
-      }
-    };
-
-    compute();
-    const ro = new ResizeObserver(compute);
-    ro.observe(el);
-    const t = setTimeout(compute, 50);
-    return () => { ro.disconnect(); clearTimeout(t); };
-  }, [idx, SLIDES.length]);
-
-  // Track current index while user scrolls
-  React.useEffect(() => {
-    const el = wrapRef.current;
-    if (!el) return;
-
-    const onScroll = () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => {
-        const pos = el.scrollLeft;
-        const pts = positionsRef.current;
-        if (!pts.length) return;
-        let nearest = 0, best = Math.abs(pos - pts[0]);
-        for (let i = 1; i < pts.length; i++) {
-          const d = Math.abs(pos - pts[i]);
-          if (d < best) { best = d; nearest = i; }
-        }
-        setIdx(nearest);
-      });
-    };
-
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, []);
-
-  // Autoplay (pause on hover OR when on a video slide)
-  React.useEffect(() => {
-    if (isHover) return;
-    const el = wrapRef.current;
-    if (!el || !positionsRef.current.length) return;
-
-    const isVideo = SLIDES[idx]?.type === "video";
-    if (isVideo) return; // don't auto-advance while video is in view
-
-    intervalRef.current = setInterval(() => {
-      const next = (idx + 1) % SLIDES.length;
-      const left = positionsRef.current[next] ?? 0;
-      el.scrollTo({ left, behavior: "smooth" });
-    }, 3000);
-
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [idx, isHover, SLIDES.length]);
-
-  const goTo = (i: number) => {
-    const el = wrapRef.current; if (!el) return;
-    const n = (i + SLIDES.length) % SLIDES.length;
-    const left = positionsRef.current[n] ?? 0;
-    el.scrollTo({ left, behavior: "smooth" });
-    setIdx(n);
-  };
-
-  return (
-    <div className="w-full relative">
-      {/* Track */}
-      <div
-        ref={wrapRef}
-        className="
-          flex w-full overflow-x-auto scroll-smooth
-          gap-3 sm:gap-4 md:gap-6
-          justify-start px-3 sm:px-4
-          snap-x snap-mandatory
-          hide-scrollbar
-        "
-        onMouseEnter={() => setIsHover(true)}
-        onMouseLeave={() => setIsHover(false)}
-      >
-        {SLIDES.map((slide, i) => (
-          slide.type === "image" ? (
-            <div
-              key={`img-${slide.src}-${i}`}
-              className="
-                shrink-0 rounded-[20px] bg-no-repeat bg-center bg-cover
-                snap-start
-                min-w-[70%] sm:min-w-[265px] md:min-w-[320px] lg:min-w-[360px]
-                aspect-[265/227]
-              "
-              style={{ backgroundImage: `url(${slide.src})` }}
-            />
-          ) : (
-            <div
-              key={`vid-${slide.src}-${i}`}
-              className="
-                shrink-0 snap-start
-                min-w-[70%] sm:min-w-[265px] md:min-w-[320px] lg:min-w-[360px]
-                aspect-[265/227]
-                rounded-[20px] overflow-hidden bg-black
-              "
-            >
-              <iframe
-                className="w-full h-full"
-                src={`${slide.src}?rel=0`}
-                title="Course video"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                allowFullScreen
-                loading="lazy"
-              />
-            </div>
-          )
-        ))}
-      </div>
-
-      {/* Left Arrow */}
-      <button
-        aria-label="Previous slide"
-        onClick={() => goTo(idx - 1)}
-        className="
-          absolute left-2 top-1/2 -translate-y-1/2
-          h-8 w-8 sm:h-9 sm:w-9
-          rounded-full bg-black/35 hover:bg-black/55
-          text-white shadow-md backdrop-blur
-          flex items-center justify-center
-          focus:outline-none focus:ring-2 focus:ring-black/30
-        "
-      >
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M15 18l-6-6 6-6" />
-        </svg>
-      </button>
-
-      {/* Right Arrow */}
-      <button
-        aria-label="Next slide"
-        onClick={() => goTo(idx + 1)}
-        className="
-          absolute right-2 top-1/2 -translate-y-1/2
-          h-8 w-8 sm:h-9 sm:w-9
-          rounded-full bg-black/35 hover:bg-black/55
-          text-white shadow-md backdrop-blur
-          flex items-center justify-center
-          focus:outline-none focus:ring-2 focus:ring-black/30
-        "
-      >
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M9 6l6 6-6 6" />
-        </svg>
-      </button>
-    </div>
-  );
-}
-
-
 
 
 const WaitList: React.FC = () => {
@@ -261,7 +77,7 @@ const WaitList: React.FC = () => {
 
         {/* Main */}
         <div className='w-screen h-[calc(100%-80px)] sm:h-[calc(100%-113px)] flex flex-col items-center overflow-x-hidden overflow-y-auto hide-scrollbar'>
-            <div className='w-[95%] xl:w-[60%] h-auto py-[30px] flex flex-col'>
+            <div className='w-[95%] xl:w-[70%] h-auto py-[30px] flex flex-col'>
 
                 {/* Banner */}
                 <BannerCarousel />
@@ -307,7 +123,7 @@ const WaitList: React.FC = () => {
                         text-[46px] sm:text-[40px] md:text-[56px]
                         leading-tight sm:leading-snug md:leading-[1.2]
                         w-full sm:w-[80%] md:w-[65%]
-                        text-center xl:text-left
+                        text-center
                         "
                     >
                         Your Guide to getting rid of{" "}
@@ -334,8 +150,8 @@ const WaitList: React.FC = () => {
                         <input
                             type="email"
                             className="
-                                w-full sm:w-[320px] md:w-[388px]
-                                h-[66px] sm:h-[70px] md:h-[82px]
+                                w-full sm:w-[400px] md:w-[450px]
+                                h-[76px] sm:h-[70px] md:h-[82px]
                                 rounded-[40px] sm:rounded-[50px] md:rounded-[60px]
                                 bg-white
                                 indent-4 sm:indent-6 md:indent-7
@@ -348,7 +164,7 @@ const WaitList: React.FC = () => {
                         <div
                             className="
                                 flex flex-col justify-center items-center
-                                h-[56px] sm:h-[70px] md:h-[82px]
+                                h-[76px] sm:h-[70px] md:h-[82px]
                                 absolute top-0 right-2 sm:right-2 md:right-3
                             "
                         >
