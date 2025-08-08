@@ -335,7 +335,7 @@ const WaitList: React.FC = () => {
                             type="email"
                             className="
                                 w-full sm:w-[320px] md:w-[388px]
-                                h-[56px] sm:h-[70px] md:h-[82px]
+                                h-[66px] sm:h-[70px] md:h-[82px]
                                 rounded-[40px] sm:rounded-[50px] md:rounded-[60px]
                                 bg-white
                                 indent-4 sm:indent-6 md:indent-7
@@ -355,7 +355,7 @@ const WaitList: React.FC = () => {
                             <button
                                 className="
                                 text-white bg-[#0A5DBC]
-                                h-[40px] sm:h-[46px] md:h-[50px]
+                                h-[50px] sm:h-[46px] md:h-[50px]
                                 px-4 sm:px-[18px] md:px-[20px]
                                 text-sm sm:text-[14px] font-normal
                                 flex justify-center items-center
@@ -377,7 +377,7 @@ const WaitList: React.FC = () => {
                             {/* Avatar 1 */}
                             <span className="relative inline-flex h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-yellow-400">
                                 <img
-                                    src="/user.jpg"
+                                    src="/t1.png"
                                     alt=""
                                     className="absolute h-[85%] w-[85%] inset-0 m-[3px] rounded-full object-cover ring-2 ring-white"
                                 />
@@ -385,7 +385,7 @@ const WaitList: React.FC = () => {
                             {/* Avatar 2 */}
                             <span className="relative inline-flex -ml-2 h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-cyan-400">
                                 <img
-                                    src="/user.jpg"
+                                    src="/t2.png"
                                     alt=""
                                     className="absolute h-[85%] w-[85%] inset-0 m-[3px] rounded-full object-cover ring-2 ring-white"
                                 />
@@ -393,7 +393,7 @@ const WaitList: React.FC = () => {
                             {/* Avatar 3 */}
                             <span className="relative inline-flex -ml-2 h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-red-500">
                                 <img
-                                    src="/user.jpg"
+                                    src="/t3.png"
                                     alt=""
                                     className="absolute h-[85%] w-[85%] inset-0 m-[3px] rounded-full object-cover ring-2 ring-white"
                                 />
@@ -433,13 +433,13 @@ const WaitList: React.FC = () => {
                             <span
                                 className="
                                 block
-                                text-[18px] sm:text-[24px] md:text-[36px]
+                                text-[24px] sm:text-[24px] md:text-[36px]
                                 font-semibold
                                 leading-snug sm:leading-normal md:leading-[1.3]
                                  sm:text-left
                                 "
                             >
-                                Learn how to fix acid reflux naturally with simple diet, lifestyle, and gut-healing strategies. This course helps you find lasting relief without relying on medication.
+                                Learn how to <span className='text-[#000]'>fix acid reflux naturally</span> with simple diet, lifestyle, and <span className='text-[#000]'>gut-healing strategies</span>. This course helps you find lasting relief <span className='text-[#000]'>without relying on medication</span>.
                             </span>
                         </div>
                         <div className="mt-[30px] w-full bg-white rounded-[20px] px-[15px] pt-[25px] pb-[15px]">
