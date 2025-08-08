@@ -44,7 +44,7 @@ export default function Signin() {
               <span className="text-[15px] md:text-[16px] mt-2 w-full max-w-[400px]">
                 <span className="text-[#787878] font-medium">Welcome!</span>
               </span>
-              <div className="flex justify-center items-center w-full h-[48px] md:h-[50px] bg-white border border-[#ECECEC] mt-6 rounded-[15px] cursor-pointer hover:opacity-85 transition-all" onClick={()=>router.push('/wait-list/creator-rt567jilo9')}>
+              <div className="flex justify-center items-center w-full h-[48px] md:h-[50px] bg-white border border-[#ECECEC] mt-6 rounded-[15px] cursor-pointer hover:opacity-85 transition-all" onClick={()=>router.push('/dashboard')}>
                 <div className="flex items-center mr-3">
                   <Image src={'/google.png'} alt="google" width={36} height={24} />
                 </div>
