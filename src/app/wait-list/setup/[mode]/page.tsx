@@ -118,6 +118,7 @@ const WaitListSetup: React.FC = () => {
                                 <button
                                     className="w-[100px] sm:w-[126px] h-[40px] sm:h-[44px] bg-[#0A5DBC] rounded-[15px] flex items-center justify-center text-white text-[14px] sm:text-[16px] font-[500] leading-[24px]"
                                     type="submit"
+                                    onClick={()=>router.push('/dashboard')}
                                 >
                                     Save & Next
                                 </button>
