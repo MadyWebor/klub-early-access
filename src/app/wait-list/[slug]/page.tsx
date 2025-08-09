@@ -40,7 +40,7 @@ const FAQS = [
 
 const WaitList: React.FC = () => {
 
-    const [open, setOpen] = React.useState(true);
+    const [open, setOpen] = React.useState(false);
     const [openIdx, setOpenIdx] = React.useState<number | null>(null);
 
     const toggle = (i: number) => {
