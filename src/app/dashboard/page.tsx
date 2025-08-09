@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 
 const Dashboard: React.FC = () => {
 
-    const router = useRouter()
+    const router = useRouter();
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text)

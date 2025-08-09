@@ -8,6 +8,7 @@ import { FaRegUserCircle } from "react-icons/fa";
 import { IoCheckmark } from "react-icons/io5";
 import { FaQuestion } from "react-icons/fa6";
 import BannerCarousel from './Carousel';
+import ModalWaitlist from './SuccessModal';
 
 const SOCIALS = [
     { label: 'Instagram', handle: 'dranjalicures', icon: '/insta.png', href: 'https://instagram.com/dranjalicures' },
@@ -39,6 +40,7 @@ const FAQS = [
 
 const WaitList: React.FC = () => {
 
+    const [open, setOpen] = React.useState(true);
     const [openIdx, setOpenIdx] = React.useState<number | null>(null);
 
     const toggle = (i: number) => {
@@ -55,6 +57,11 @@ const WaitList: React.FC = () => {
     ];
 
     return <div className='w-screen h-screen overflow-hidden flex flex-col bg-[#F6F6F6]'>
+              <ModalWaitlist
+        open={open}
+        onClose={() => setOpen(false)}
+        // Optional props to customize text, avatars, etc.
+      />
 
         {/* Header */}
         <div className="w-screen flex justify-center h-[80px] sm:h-[113px] shadow-[0px_2px_20px_0px_#2A2A2A0D] bg-[#F6F6F6]">
@@ -178,6 +185,7 @@ const WaitList: React.FC = () => {
                                 rounded-full shadow-md hover:bg-[#094c9a] transition
                                 gap-2
                                 "
+                                onClick={()=> setOpen(true)}
                             >
                                 <BsVectorPen className='w-[18px] h-[18px]' />
                                 Join for Rs. 50
