@@ -1,0 +1,5 @@
+name: Run Prisma migrations
+run: npx prisma migrate deploy
+env:
+   NETLIFY_DATABASE_URL: ${{ secrets.DATABASE_URL_POOLED }} 
+   NETLIFY_DATABASE_URL_UNPOOLED: ${{ secrets.DIRECT_URL }}
