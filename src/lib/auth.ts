@@ -3,17 +3,15 @@ import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 
-export const authOptions: NextAuthOptions = {
+export const authOptions = {
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
 
-  // Custom pages (optional)
   pages: {
-    signIn: "/signin",            // your login UI
-    // signOut: "/dashboard",      // NOTE: this is a *page*, not a redirect. Usually omit.
+    signIn: "/signin",
     error: "/auth/error",
-    verifyRequest: "/auth/verify", // used only if you add Email provider
-    newUser: "/profile",           // first successful sign-in only
+    verifyRequest: "/auth/verify",
+    newUser: "/profile",
   },
 
   providers: [
@@ -24,7 +22,6 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-  // Runs once for a brand-new user
   events: {
     async createUser({ user }) {
       await prisma.onboardingProgress.create({ data: { userId: user.id } });
@@ -35,16 +32,16 @@ export const authOptions: NextAuthOptions = {
     },
   },
 
-callbacks: {
-  async jwt({ token, user }) {
-    if (user) token.userId = (user as any).id;
-    return token;
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) token.userId = user.id; // typed via module augmentation
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token.userId) {
+        session.user.id = token.userId; // typed via module augmentation
+      }
+      return session;
+    },
   },
-  async session({ session, token }) {
-    if (token?.userId) {
-      (session.user as any) = { ...(session.user || {}), id: token.userId as string };
-    }
-    return session;
-  },
-},
-};
+} satisfies NextAuthOptions;
