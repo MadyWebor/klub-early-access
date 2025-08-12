@@ -2,8 +2,10 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 
-export default function Profile() {
+export default function Profile () {
+
   const router = useRouter();
+  
 
   return (
     <div className="w-full min-h-[100vh] bg-white flex items-center justify-center">

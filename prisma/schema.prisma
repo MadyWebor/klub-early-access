@@ -1,0 +1,277 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // url      = env("DATABASE_URL")
+  url       = env("NETLIFY_DATABASE_URL")           // pooled (runtime)
+  directUrl = env("NETLIFY_DATABASE_URL_UNPOOLED")  // direct (migrations)
+}
+
+// ---------- Auth (NextAuth v5 @auth/prisma-adapter) ----------
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String? // avatar URL (used by profile)
+
+  // --- Custom profile fields (Step 1) ---
+  fullName String? // "Full name"
+  handle   String? @unique // "Username" / public handle
+  bio      String? // "Enter your bio"
+
+  // --- Onboarding state ---
+  onboardingStatus OnboardingStatus    @default(profile)
+  progress         OnboardingProgress?
+
+  // NextAuth relations
+  accounts       Account[]
+  sessions       Session[]
+  authenticators Authenticator[] // <-- FIX: add opposite side of relation
+
+  // App relations
+  waitlists Waitlist[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, credentialID])
+}
+
+// ---------- Onboarding progress flags ----------
+model OnboardingProgress {
+  userId      String  @id
+  profileDone Boolean @default(false)
+  courseDone  Boolean @default(false)
+  contentDone Boolean @default(false)
+  priceDone   Boolean @default(false)
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum OnboardingStatus {
+  profile
+  course
+  content
+  price
+  completed
+}
+
+// ---------- Waitlist / Course (Steps 2–4 + public page) ----------
+model Waitlist {
+  id      String @id @default(cuid())
+  // Ownership
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // ---- Step 2: Course details ----
+  title        String // "Course Title"
+  courseBio    String? // "Course Bio"
+  about        String? // "About Course"
+  slug         String? @unique // public slug e.g. "fitwithdranjali" or "799njj"
+  thumbnailUrl String? // "Course Thumbnail" (image URL)
+
+  // ---- Step 3: Page content ----
+  bannerVideoUrl String? // banner video URL
+
+  // ---- Step 4: Pricing / Launch ----
+  currency    String    @default("INR")
+  priceAmount Int? // minor units (e.g., 7900 = ₹79.00)
+  launchDate  DateTime?
+  buttonLabel String? // e.g., "Join for Rs. 79"
+  published   Boolean   @default(false)
+  publishedAt DateTime?
+
+  // Derived
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  media       WaitlistMedia[]
+  benefits    WaitlistBenefit[]
+  socials     WaitlistSocial?
+  faqs        WaitlistFaq[]
+  subscribers Subscriber[]
+  payments    Payment[]
+
+  @@index([ownerId])
+}
+
+// ---- Content: Images & Videos ----
+model WaitlistMedia {
+  id           String    @id @default(cuid())
+  waitlistId   String
+  kind         MediaKind // IMAGE | VIDEO
+  url          String // store CDN/public URL
+  displayOrder Int       @default(0)
+
+  waitlist Waitlist @relation(fields: [waitlistId], references: [id], onDelete: Cascade)
+
+  @@index([waitlistId, kind])
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+}
+
+// ---- Content: Benefits list ----
+model WaitlistBenefit {
+  id           String @id @default(cuid())
+  waitlistId   String
+  text         String
+  displayOrder Int    @default(0)
+
+  waitlist Waitlist @relation(fields: [waitlistId], references: [id], onDelete: Cascade)
+
+  @@index([waitlistId])
+}
+
+// ---- Content: Social links (single row per waitlist) ----
+model WaitlistSocial {
+  waitlistId   String  @id
+  websiteUrl   String?
+  youtubeUrl   String?
+  instagramUrl String?
+  linkedinUrl  String?
+  facebookUrl  String?
+  xUrl         String? // Twitter / X
+
+  waitlist Waitlist @relation(fields: [waitlistId], references: [id], onDelete: Cascade)
+}
+
+// ---- Content: FAQs (Q/A list) ----
+model WaitlistFaq {
+  id           String @id @default(cuid())
+  waitlistId   String
+  question     String
+  answer       String
+  displayOrder Int    @default(0)
+
+  waitlist Waitlist @relation(fields: [waitlistId], references: [id], onDelete: Cascade)
+
+  @@index([waitlistId])
+}
+
+// ---------- Subscribers & Payments (dashboard table) ----------
+model Subscriber {
+  id          String           @id @default(cuid())
+  waitlistId  String
+  fullName    String?
+  email       String
+  // Snapshot of price at time of join/purchase (minor units)
+  priceAmount Int?
+  currency    String?
+  status      SubscriberStatus @default(LEAD)
+  createdAt   DateTime         @default(now())
+
+  payment  Payment?
+  waitlist Waitlist @relation(fields: [waitlistId], references: [id], onDelete: Cascade)
+
+  @@unique([waitlistId, email]) // dedupe subscribers per waitlist
+  @@index([waitlistId, status])
+}
+
+enum SubscriberStatus {
+  LEAD
+  PAID
+  REFUNDED
+  FAILED
+}
+
+// Payment record tied to a subscriber (and waitlist)
+model Payment {
+  id           String          @id @default(cuid())
+  waitlistId   String
+  subscriberId String          @unique
+  provider     PaymentProvider
+  method       PaymentMethod?
+  amount       Int // minor units (e.g., 4900)
+  currency     String // e.g., "INR"
+  status       PaymentStatus   @default(CREATED)
+  externalId   String? // gateway payment id
+  orderId      String? // gateway order/intent id
+  receipt      String? // your internal receipt / reference
+  rawResponse  Json? // gateway payload for auditing
+  createdAt    DateTime        @default(now())
+  capturedAt   DateTime?
+
+  subscriber Subscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  waitlist   Waitlist   @relation(fields: [waitlistId], references: [id], onDelete: Cascade)
+
+  @@index([waitlistId, status])
+  @@index([provider, externalId])
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  STRIPE
+  CASHFREE
+  PAYTM
+  OTHER
+}
+
+enum PaymentMethod {
+  UPI
+  CARD
+  NETBANKING
+  WALLET
+  OTHER
+}
+
+enum PaymentStatus {
+  CREATED
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+}

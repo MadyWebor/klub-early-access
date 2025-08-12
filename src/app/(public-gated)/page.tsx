@@ -1,10 +1,18 @@
 'use client';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+// import { useRouter } from 'next/navigation';
+// import { signIn } from "@/app/auth";
+import { signIn } from "next-auth/react";
 
-export default function Signin() {
-  const router = useRouter();
+export default function Signin({ title, next }: { title: string; next?: string }) {
+//    const redirectTo = next ?? "/dashboard";
+//  async function googleAction() {
+//     "use server";
+//     await signIn("google", { redirectTo: next || "/dashboard" });
+//     // middleware will handle onboarding redirection
+//   }
+
 
   return (
     <div className="h-screen w-full bg-white flex flex-col border items-center justify-center overflow-hidden">
@@ -59,9 +67,10 @@ export default function Signin() {
                 </div>
 
                 {/* Google button */}
+                {/* <form > */}
                 <button
                   type="button"
-                  onClick={() => router.push('/dashboard')}
+                  onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
                   className="mt-6 h-[48px] sm:h-[50px] w-full bg-white border border-[#ECECEC] rounded-[15px] flex items-center justify-center gap-3 hover:opacity-85 transition"
                 >
                   <Image src="/google.png" alt="google" width={24} height={24} />
@@ -69,6 +78,8 @@ export default function Signin() {
                     Continue with Google
                   </span>
                 </button>
+                {/* </form> */}
+
 
                 {/* signup help */}
                 <p className="text-[#787878] mt-4">

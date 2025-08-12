@@ -1,4 +1,5 @@
 'use client'
+import { prisma } from "@/app/lib/db";
 
 import React from 'react';
 import { CiPlay1, CiStar } from "react-icons/ci";
@@ -39,6 +40,7 @@ const FAQS = [
 
 
 const WaitList: React.FC = () => {
+    
 
     const [open, setOpen] = React.useState(false);
     const [openIdx, setOpenIdx] = React.useState<number | null>(null);

@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
+
 type TickState = {
   1: { icon: string; status: string };
   2: { icon: string; status: string };
@@ -14,14 +15,15 @@ const chosen = { icon: '/tick-choosen.png', status: 'border-[#ECECEC] text-[#000
 const done = { icon: '/tick-finish.png', status: 'border-[#0A5DBC] text-[#0A5DBC] bg-[#E6EFF8]' };
 
 export default function WaitListSetup() {
-  const router = useRouter();
-  const params = useParams();
 
-  // Normalize mode (string | string[] | undefined → string)
+    const router = useRouter();
+  const params = useParams();
+    // Normalize mode (string | string[] | undefined → string)
   const mode = useMemo(() => {
     const m = (params?.mode ?? '') as string | string[];
     return Array.isArray(m) ? m[0] : m;
   }, [params]);
+
 
   const [tick, setTick] = useState<TickState>({
     1: base,

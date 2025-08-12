@@ -2,10 +2,14 @@
 import React from 'react';
 import { GoCopy } from "react-icons/go";
 import { useRouter } from 'next/navigation';
+import { signOut } from "next-auth/react";
+
 
 const Dashboard: React.FC = () => {
 
     const router = useRouter();
+
+
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text)
@@ -262,7 +266,7 @@ const Dashboard: React.FC = () => {
           border-[#FFD3D7] text-[#E53935] bg-white
           hover:bg-[#FFF5F5] transition
         "
-                                onClick={() => router.push('/signin')}
+                                onClick={() => signOut({ callbackUrl: "/" })}
                             >
                                 {/* icon: sign-out arrow */}
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none">

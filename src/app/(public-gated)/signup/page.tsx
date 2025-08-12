@@ -2,6 +2,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { signIn } from "next-auth/react";
 
 export default function Signup() {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function Signup() {
                 {/* Google button */}
                 <button
                   type="button"
-                  onClick={() => router.push('/profile')}
+                  onClick={() => signIn("google", { callbackUrl: "/profile" })}
                   className="mt-6 h-[48px] sm:h-[50px] w-full bg-white border border-[#ECECEC] rounded-[15px] flex items-center justify-center gap-3 hover:opacity-85 transition"
                 >
                   <Image src="/google.png" alt="google" width={24} height={24} />
