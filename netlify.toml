@@ -1,5 +1,5 @@
 [build]
-  command = "yarn build"       # ✅ just build
+  command = "next build"       # ✅ just build
   publish = ".next"
 
 [[plugins]]
