@@ -10,12 +10,12 @@ import { nextOnboardingPath } from "@/lib/onboarding";
 import WaitListSetup from "./UI";
 
 type Mode = "course" | "content" | "price";
+type Props = { params: { mode: Mode } };
 
-export default async function WaitListSetupPage({
-  params: { mode },
-}: {
-  params: { mode: Mode };
-}) {
+
+
+export default async function WaitListSetupPage({ params }: Props) {
+  const { mode } = params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/signin");
 
