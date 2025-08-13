@@ -100,7 +100,7 @@ CREATE TABLE "public"."Waitlist" (
     "title" TEXT NOT NULL,
     "courseBio" TEXT,
     "about" TEXT,
-    "slug" TEXT NOT NULL,
+    "slug" TEXT,
     "thumbnailUrl" TEXT,
     "bannerVideoUrl" TEXT,
     "currency" TEXT NOT NULL DEFAULT 'INR',
