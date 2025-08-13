@@ -1,5 +1,4 @@
 'use client'
-import { prisma } from "@/app/lib/db";
 
 import React from 'react';
 import { CiPlay1, CiStar } from "react-icons/ci";
