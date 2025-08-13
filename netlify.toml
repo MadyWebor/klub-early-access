@@ -1,5 +1,5 @@
 [build]
-  command = "yarn prisma migrate deploy && yarn build"       # ✅ just build
+  command = "yarn build"       # ✅ just build
   publish = ".next"
 
 [[plugins]]
