@@ -2,8 +2,12 @@ import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/db";
+import { reqEnv } from "./reqEnv";
 
-export const authOptions = {
+export const authOptions: NextAuthOptions = {
+  // force a helpful error if secret/envs are missing
+  secret: reqEnv("NEXTAUTH_SECRET"),
+
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
 
@@ -16,15 +20,19 @@ export const authOptions = {
 
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? process.env.AUTH_GOOGLE_ID ?? "",
-      clientSecret:
-        process.env.GOOGLE_CLIENT_SECRET ?? process.env.AUTH_GOOGLE_SECRET ?? "",
+      clientId: reqEnv("GOOGLE_CLIENT_ID"),
+      clientSecret: reqEnv("GOOGLE_CLIENT_SECRET"),
     }),
   ],
 
   events: {
     async createUser({ user }) {
-      await prisma.onboardingProgress.create({ data: { userId: user.id } });
+      // idempotent to avoid rare race on callback
+      await prisma.onboardingProgress.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: { userId: user.id },
+      });
       await prisma.user.update({
         where: { id: user.id },
         data: { onboardingStatus: "profile" },
@@ -33,15 +41,7 @@ export const authOptions = {
   },
 
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) token.userId = user.id; // typed via module augmentation
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user && token.userId) {
-        session.user.id = token.userId; // typed via module augmentation
-      }
-      return session;
-    },
+    async jwt({ token, user }) { if (user) (token as any).userId = user.id; return token; },
+    async session({ session, token }) { if (session.user && (token as any).userId) session.user.id = (token as any).userId; return session; },
   },
-} satisfies NextAuthOptions;
+};
