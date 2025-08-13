@@ -4,10 +4,8 @@ import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import { prisma } from "@/lib/db";
 import { reqEnv } from "./reqEnv";
 
-export const authOptions: NextAuthOptions = {
-  // force a helpful error if secret/envs are missing
+export const authOptions = {
   secret: reqEnv("NEXTAUTH_SECRET"),
-
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
 
@@ -27,7 +25,6 @@ export const authOptions: NextAuthOptions = {
 
   events: {
     async createUser({ user }) {
-      // idempotent to avoid rare race on callback
       await prisma.onboardingProgress.upsert({
         where: { userId: user.id },
         update: {},
@@ -41,7 +38,15 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, user }) { if (user) (token as any).userId = user.id; return token; },
-    async session({ session, token }) { if (session.user && (token as any).userId) session.user.id = (token as any).userId; return session; },
+    async jwt({ token, user }) {
+      if (user) token.userId = user.id;
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && token.userId) {
+        session.user.id = token.userId;
+      }
+      return session;
+    },
   },
-};
+} satisfies NextAuthOptions;
