@@ -5,9 +5,9 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
-  // url       = env("NETLIFY_DATABASE_URL")           // pooled (runtime)
-  // directUrl = env("NETLIFY_DATABASE_URL_UNPOOLED")  // direct (migrations)
+  // url      = env("DATABASE_URL")
+  url       = env("NETLIFY_DATABASE_URL")           // pooled (runtime)
+  directUrl = env("NETLIFY_DATABASE_URL_UNPOOLED")  // direct (migrations)
 }
 
 // ---------- Auth (NextAuth v5 @auth/prisma-adapter) ----------
