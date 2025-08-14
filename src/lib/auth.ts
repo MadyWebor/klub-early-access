@@ -23,8 +23,9 @@ export const authOptions = {
     }),
   ],
 
-  events: {
-    async createUser({ user }) {
+events: {
+  async createUser({ user }) {
+    try {
       await prisma.onboardingProgress.upsert({
         where: { userId: user.id },
         update: {},
@@ -34,8 +35,12 @@ export const authOptions = {
         where: { id: user.id },
         data: { onboardingStatus: "profile" },
       });
-    },
+    } catch (err) {
+      console.error("createUser event failed", err);
+      // do NOT rethrow
+    }
   },
+},
   callbacks: {
     async jwt({ token }) { return token; },
     async session({ session, token }) {
