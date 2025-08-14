@@ -1,8 +1,25 @@
-export function json(data: any, init?: number | ResponseInit) {
-  const status = typeof init === "number" ? init : (init as ResponseInit)?.status ?? 200;
-  const headers = new Headers(typeof init === "number" ? undefined : (init as ResponseInit)?.headers);
-  headers.set("content-type", "application/json; charset=utf-8");
-  return new Response(JSON.stringify(data), { ...(typeof init === "number" ? { status: init } : (init as ResponseInit)), headers });
+// JSON-safe type
+type JsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | JsonValue[]
+  | { [key: string]: JsonValue };
+
+export function json<T extends JsonValue>(
+  data: T,
+  init?: number | ResponseInit
+): Response {
+  const resInit: ResponseInit =
+    typeof init === "number" ? { status: init } : (init ?? {});
+
+  const headers = new Headers(resInit.headers);
+  if (!headers.has("content-type")) {
+    headers.set("content-type", "application/json; charset=utf-8");
+  }
+
+  return new Response(JSON.stringify(data), { ...resInit, headers });
 }
 
 export function toMessage(e: unknown, fallback = "Unexpected error") {
