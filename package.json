@@ -18,7 +18,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:push": "prisma db push",
     "prisma:reset": "prisma migrate reset",
-    "build:netlify": "yarn prisma:fmt && yarn prisma:validate && yarn prisma:gen && prisma migrate resolve --applied 20250813003259_init && yarn prisma:deploy && next build",
+    "build:netlify": "next build",
     "studio": "prisma studio"
   },
   "dependencies": {
