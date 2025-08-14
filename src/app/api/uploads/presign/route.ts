@@ -40,7 +40,7 @@ const UserImageBody = Base.extend({
 const WaitlistMediaBody = Base.extend({
   target: z.literal("waitlist.media"),
   kind: z.enum(["IMAGE", "VIDEO"]),
-  waitlistId: z.string(), // required for waitlist.media
+  waitlistId: z.string(), // required when target is waitlist.media
 });
 
 const Body = z.union([UserImageBody, WaitlistMediaBody]);
@@ -60,10 +60,7 @@ export async function POST(req: NextRequest) {
     const filename = ensureExt(rawName, contentType);
 
     // Basic contentType guards
-    if (
-      parsed.data.target === "user.image" &&
-      !contentType.startsWith("image/")
-    ) {
+    if (parsed.data.target === "user.image" && !contentType.startsWith("image/")) {
       return NextResponse.json(
         { ok: false, error: { message: "Profile image must be an image/* file" } },
         { status: 400 }
@@ -91,8 +88,8 @@ export async function POST(req: NextRequest) {
     const safeName = filename.replace(/[^\w.\-]+/g, "_").slice(-80);
     const key = [
       "uploads",
-      parsed.data.kind.toLowerCase(),               // "image" | "video"
-      new Date().toISOString().slice(0, 10),        // YYYY-MM-DD
+      parsed.data.kind.toLowerCase(), // "image" | "video"
+      new Date().toISOString().slice(0, 10), // YYYY-MM-DD
       randomUUID(),
       safeName,
     ].join("/");
@@ -101,7 +98,7 @@ export async function POST(req: NextRequest) {
       Bucket: bucket,
       Key: key,
       ContentType: contentType,
-      // For classic S3 public buckets you could add: ACL: "public-read",
+      // ACL: "public-read", // only if your bucket uses ACLs and you want public objects
     });
 
     const uploadUrl = await getSignedUrl(s3, putCmd, { expiresIn: 600 }); // 10 minutes
@@ -122,10 +119,9 @@ export async function POST(req: NextRequest) {
               waitlistId: parsed.data.waitlistId,
             },
     });
-  } catch (err: any) {
-    return NextResponse.json(
-      { ok: false, error: { message: err?.message || "Failed to presign" } },
-      { status: 500 }
-    );
+  } catch (e: unknown) {
+    const message =
+      e instanceof Error ? e.message : typeof e === "string" ? e : "Failed to presign";
+    return NextResponse.json({ ok: false, error: { message } }, { status: 500 });
   }
 }

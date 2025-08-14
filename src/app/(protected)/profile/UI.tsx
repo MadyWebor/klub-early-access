@@ -63,6 +63,14 @@ function Alert({
   );
 }
 
+// simple helper to avoid `any` in catches
+function errorMessage(e: unknown, fallback: string) {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  try { return JSON.stringify(e); } catch {}
+  return fallback;
+}
+
 export default function Profile() {
   const router = useRouter();
 
@@ -101,7 +109,9 @@ export default function Profile() {
         }),
       });
       const presigned = await presignRes.json();
-      if (!presigned.ok) throw new Error(presigned?.error?.message || "Failed to presign");
+      if (!presignRes.ok || !presigned.ok) {
+        throw new Error(presigned?.error?.message || "Failed to presign");
+      }
 
       // 2) PUT directly to storage
       const putRes = await fetch(presigned.uploadUrl, {
@@ -123,16 +133,18 @@ export default function Profile() {
         }),
       });
       const committed = await commitRes.json();
-      if (!committed.ok) throw new Error(committed?.error?.message || "Commit failed");
+      if (!commitRes.ok || !committed.ok) {
+        throw new Error(committed?.error?.message || "Commit failed");
+      }
 
       // 4) update UI
       setImage(presigned.publicUrl);
       clearFieldError("image");
       setAlertKind("success");
       setAlertMsg("Image uploaded.");
-    } catch (e: any) {
+    } catch (e: unknown) {
       setAlertKind("error");
-      setAlertMsg(e?.message || "Upload failed.");
+      setAlertMsg(errorMessage(e, "Upload failed."));
     } finally {
       setUploading(false);
     }
@@ -161,9 +173,9 @@ export default function Profile() {
           setBio(p.bio ?? "");
           setImage(p.image ?? "");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         setAlertKind("error");
-        setAlertMsg(err?.message || "Could not load your profile.");
+        setAlertMsg(errorMessage(err, "Could not load your profile."));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -210,10 +222,7 @@ export default function Profile() {
       const data = await res.json();
 
       if (!res.ok || !data?.ok) {
-        // Try to surface server-side field errors if API returns them
-        // e.g. { ok:false, errors:{ handle: "Handle is taken" }, error:{message:"..."} }
-        const serverFieldErrors: Partial<Record<Field, string>> =
-          data?.errors || {};
+        const serverFieldErrors: Partial<Record<Field, string>> = data?.errors || {};
         setErrors((prev) => ({ ...prev, ...serverFieldErrors }));
 
         const msg =
@@ -229,13 +238,12 @@ export default function Profile() {
       if (data.profile?.handle) setHandle(data.profile.handle);
 
       const next: string = data.next ?? "/wait-list/setup/course";
-      // Optional success alert before redirect (usually redirect is immediate)
       setAlertKind("success");
       setAlertMsg("Profile saved successfully.");
       router.push(next);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setAlertKind("error");
-      setAlertMsg(err?.message || "Something went wrong while saving.");
+      setAlertMsg(errorMessage(err, "Something went wrong while saving."));
     } finally {
       setSaving(false);
     }
@@ -278,11 +286,10 @@ export default function Profile() {
               />
             ) : null}
 
-            {/* Avatar + Edit (optional URL field) */}
+            {/* Avatar + Edit */}
             <div className="w-full flex justify-center">
               <div className="relative w-[72px] h-[72px] sm:w-[85px] sm:h-[85px] border-2 rounded-[15px] border-[#000000] p-[2px] bg-white shadow">
                 <div className="w-full h-full rounded-[15px] overflow-hidden">
-                  {/* You can switch to <Image /> if you prefer */}
                   <img
                     src={image || "/user.jpg"}
                     alt="Profile"
@@ -295,7 +302,7 @@ export default function Profile() {
                 <button
                   type="button"
                   className="absolute bottom-[-18px] right-1 sm:right-[-30px] flex items-center gap-1 px-[8px] py-[4px] bg-white rounded-[10px] border border-[#DADADA] text-[12px] sm:text-[13px] md:text-[14px] font-medium hover:bg-gray-100 transition shadow"
-onClick={() => document.getElementById("avatar-file")?.click()}
+                  onClick={() => document.getElementById("avatar-file")?.click()}
                 >
                   <svg
                     width="18"
@@ -312,19 +319,19 @@ onClick={() => document.getElementById("avatar-file")?.click()}
                       d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L7.5 21H3v-4.5L16.732 3.732z"
                     />
                   </svg>
-                  Edit
+                  {uploading ? "Uploading..." : "Edit"}
                 </button>
                 <input
-  id="avatar-file"
-  type="file"
-  accept="image/*"
-  className="hidden"
-  onChange={(e) => {
-    const file = e.target.files?.[0];
-    if (file) uploadFileToStorage(file);
-    e.currentTarget.value = ""; // allow re-select same file
-  }}
-/>
+                  id="avatar-file"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadFileToStorage(file);
+                    e.currentTarget.value = ""; // allow re-select same file
+                  }}
+                />
               </div>
             </div>
 
