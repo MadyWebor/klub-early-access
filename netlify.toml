@@ -1,5 +1,5 @@
 [build]
-  command = "yarn prisma:fmt && yarn prisma:validate && yarn prisma:gen && yarn prisma:deploy && yarn prisma:push && yarn run build"
+  command = "yarn build:netlify"
   publish = ".next"
 
 [[plugins]]
