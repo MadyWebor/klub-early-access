@@ -18,6 +18,8 @@ export default async function DashboardPage() {
     where: { id: session.user.id },
     select: { onboardingStatus: true },
   });
+  if (!user) redirect("/signin");
+
 
   const target = nextOnboardingPath(user?.onboardingStatus);
   if (target !== "/dashboard") redirect(target);

@@ -6,8 +6,8 @@ generator client {
 datasource db {
   provider = "postgresql"
   // url      = env("DATABASE_URL")
-  url       = env("NETLIFY_DATABASE_URL")           // pooled (runtime)
-  directUrl = env("NETLIFY_DATABASE_URL_UNPOOLED")  // direct (migrations)
+  url      = env("NETLIFY_DATABASE_URL") // pooled (runtime)
+  // directUrl = env("NETLIFY_DATABASE_URL_UNPOOLED")  // direct (migrations)
 }
 
 // ---------- Auth (NextAuth v5 @auth/prisma-adapter) ----------
@@ -17,6 +17,7 @@ model User {
   email         String?   @unique
   emailVerified DateTime?
   image         String? // avatar URL (used by profile)
+  username      String?   @unique @db.VarChar(32) // NEW
 
   // --- Custom profile fields (Step 1) ---
   fullName String? // "Full name"

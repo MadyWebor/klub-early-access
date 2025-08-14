@@ -36,17 +36,11 @@ export const authOptions = {
       });
     },
   },
-
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) token.userId = user.id;
-      return token;
-    },
+    async jwt({ token }) { return token; },
     async session({ session, token }) {
-      if (session.user && token.userId) {
-        session.user.id = token.userId;
-      }
+      if (session.user && token?.sub) (session.user as any).id = token.sub;
       return session;
     },
-  },
+  }
 } satisfies NextAuthOptions;

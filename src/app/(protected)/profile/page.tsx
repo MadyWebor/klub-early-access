@@ -18,6 +18,7 @@ export default async function ProfilePage() {
     where: { id: session.user.id },
     select: { onboardingStatus: true },
   });
+  if (!user) redirect("/signin");
 
   const target = nextOnboardingPath(user?.onboardingStatus);
   if (target !== "/profile") redirect(target);

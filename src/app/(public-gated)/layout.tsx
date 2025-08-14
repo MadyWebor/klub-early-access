@@ -1,7 +1,5 @@
 export const runtime = "nodejs";
 
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
 import { nextOnboardingPath } from "@/lib/onboarding";
@@ -16,5 +14,7 @@ export default async function PublicGatedLayout({ children }: { children: React.
     select: { onboardingStatus: true },
   });
 
-  redirect(nextOnboardingPath(user?.onboardingStatus));
+  if (user) redirect(nextOnboardingPath(user?.onboardingStatus));
+
+  return <>{children}</>;
 }

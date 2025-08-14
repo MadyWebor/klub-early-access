@@ -34,6 +34,8 @@ export default async function WaitListSetupPage({ params }: Props) {
     select: { onboardingStatus: true },
   });
 
+  if (!user) redirect("/signin");
+
   const target = nextOnboardingPath(user?.onboardingStatus);
   const expected = `/wait-list/setup/${mode}`;
   if (target !== expected) redirect(target);
