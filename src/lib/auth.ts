@@ -9,12 +9,12 @@ export const authOptions = {
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
 
-  pages: {
-    signIn: "/signin",
-    error: "/auth/error",
-    verifyRequest: "/auth/verify",
-    newUser: "/profile",
-  },
+  // pages: {
+  //   signIn: "/signin",
+  //   error: "/auth/error",
+  //   verifyRequest: "/auth/verify",
+  //   newUser: "/profile",
+  // },
 
   providers: [
     GoogleProvider({
@@ -27,7 +27,7 @@ events: {
   async createUser({ user }) {
     try {
       await prisma.onboardingProgress.upsert({
-        where: { userId: user.id },
+        where: { userId: user.id },    // must be unique
         update: {},
         create: { userId: user.id },
       });
@@ -36,8 +36,8 @@ events: {
         data: { onboardingStatus: "profile" },
       });
     } catch (err) {
-      console.error("createUser event failed", err);
-      // do NOT rethrow
+      console.error("createUser failed", err);
+      // don't rethrow
     }
   },
 },
