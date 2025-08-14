@@ -13,7 +13,6 @@ export default async function PublicGatedLayout({ children }: { children: React.
     where: { id: session.user.id },
     select: { onboardingStatus: true },
   });
-
   if (user) redirect(nextOnboardingPath(user?.onboardingStatus));
 
   return <>{children}</>;

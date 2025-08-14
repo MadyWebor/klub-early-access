@@ -20,11 +20,6 @@ import { authOptions } from "@/lib/auth";
 
 export default async function WaitListSetupPage({ params }: Props) {
   const { mode } = await params; // <-- await the params
-
-  // NextAuth v5:
-  // const session = await auth();
-
-  // NextAuth v4:
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) redirect("/signin");
