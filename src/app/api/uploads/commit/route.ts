@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth"; // make sure this exports your NextAuth options
 import type { MediaKind as PrismaMediaKind } from "@prisma/client";
+import { toMessage } from "@/lib/http"; 
 
 // ---- BODY SCHEMA (discriminated by target/kind) ----
 const Base = z.object({
@@ -93,10 +94,9 @@ export async function POST(req: NextRequest) {
       { ok: false, error: { message: "Invalid target" } },
       { status: 400 }
     );
-  } catch (err: any) {
-    return NextResponse.json(
-      { ok: false, error: { message: err?.message || "Commit failed" } },
-      { status: 500 }
-    );
-  }
-}
+  } catch (e: unknown) {
+  return NextResponse.json(
+    { ok: false, error: { message: toMessage(e, "Commit failed") } },
+    { status: 500 }
+  );
+}}

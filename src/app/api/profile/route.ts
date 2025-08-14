@@ -5,6 +5,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+// import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client"; // <-- not "import type"
 import {
   ProfileCreateSchema,
   ProfileUpdateSchema,
@@ -13,7 +15,6 @@ import {
 } from "@/lib/validators/profile";
 import { ensureUniqueHandle } from "@/lib/handle";
 
-// Consistent error helper
 function bad(status: number, message: string, field?: string) {
   return NextResponse.json({ ok: false, error: { message, field } }, { status });
 }
@@ -23,9 +24,7 @@ export async function GET() {
   const session = await getServerSession(authOptions);
   const sUser = session?.user;
   if (!sUser) return bad(401, "Not authenticated");
-  
 
-  // Prefer id; fall back to email to be robust during setup
   const where = sUser.id ? { id: sUser.id } : sUser.email ? { email: sUser.email } : null;
   if (!where) return bad(400, "No user identity in session");
 
@@ -56,7 +55,11 @@ export async function POST(req: Request) {
   if (!userId) return bad(401, "Not authenticated");
 
   let body: unknown;
-  try { body = await req.json(); } catch { return bad(400, "Invalid JSON body"); }
+  try {
+    body = await req.json();
+  } catch {
+    return bad(400, "Invalid JSON body");
+  }
 
   const parsed = ProfileCreateSchema.safeParse(body);
   if (!parsed.success) {
@@ -64,9 +67,12 @@ export async function POST(req: Request) {
     return bad(400, issue.message, issue.path[0]?.toString());
   }
 
-  let { fullName, handle, bio, image } = parsed.data;
-  if (!handle) handle = handleFromFullName(fullName);
-  if (RESERVED_HANDLES.has(handle)) return bad(409, "This username is reserved. Please choose another.", "handle");
+  const { fullName, bio, image } = parsed.data;
+  let handle = parsed.data.handle ?? handleFromFullName(fullName);
+
+  if (RESERVED_HANDLES.has(handle)) {
+    return bad(409, "This username is reserved. Please choose another.", "handle");
+  }
 
   handle = await ensureUniqueHandle(handle, userId);
 
@@ -82,8 +88,15 @@ export async function POST(req: Request) {
           onboardingStatus: "course",
         },
         select: {
-          id: true, email: true, image: true, fullName: true, handle: true, bio: true,
-          onboardingStatus: true, createdAt: true, updatedAt: true,
+          id: true,
+          email: true,
+          image: true,
+          fullName: true,
+          handle: true,
+          bio: true,
+          onboardingStatus: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
 
@@ -101,10 +114,19 @@ export async function POST(req: Request) {
       profile: updated,
       next: "/wait-list/setup/course",
     });
-  } catch (e: any) {
-    // Race condition safety: unique index on handle
-    if (e?.code === "P2002" && Array.isArray(e.meta?.target) && e.meta.target.includes("handle")) {
-      return bad(409, "This username is taken. Please choose another.", "handle");
+  } catch (e: unknown) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      const target = e.meta?.target;
+      const isHandle =
+        (typeof target === "string" && target === "handle") ||
+        (Array.isArray(target) && target.includes("handle"));
+
+      if (isHandle) {
+        return bad(409, "This username is taken. Please choose another.", "handle");
+      }
     }
     throw e;
   }
@@ -117,7 +139,11 @@ export async function PATCH(req: Request) {
   if (!userId) return bad(401, "Not authenticated");
 
   let body: unknown;
-  try { body = await req.json(); } catch { return bad(400, "Invalid JSON body"); }
+  try {
+    body = await req.json();
+  } catch {
+    return bad(400, "Invalid JSON body");
+  }
 
   const parsed = ProfileUpdateSchema.safeParse(body);
   if (!parsed.success) {
@@ -156,8 +182,15 @@ export async function PATCH(req: Request) {
           ...(current?.onboardingStatus === "profile" ? { onboardingStatus: "course" } : {}),
         },
         select: {
-          id: true, email: true, image: true, fullName: true, handle: true, bio: true,
-          onboardingStatus: true, createdAt: true, updatedAt: true,
+          id: true,
+          email: true,
+          image: true,
+          fullName: true,
+          handle: true,
+          bio: true,
+          onboardingStatus: true,
+          createdAt: true,
+          updatedAt: true,
         },
       });
 
@@ -172,9 +205,19 @@ export async function PATCH(req: Request) {
     });
 
     return NextResponse.json({ ok: true, profile: updated });
-  } catch (e: any) {
-    if (e?.code === "P2002" && Array.isArray(e.meta?.target) && e.meta.target.includes("handle")) {
-      return bad(409, "This username is taken. Please choose another.", "handle");
+  } catch (e: unknown) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      const target = e.meta?.target;
+      const isHandle =
+        (typeof target === "string" && target === "handle") ||
+        (Array.isArray(target) && target.includes("handle"));
+
+      if (isHandle) {
+        return bad(409, "This username is taken. Please choose another.", "handle");
+      }
     }
     throw e;
   }
