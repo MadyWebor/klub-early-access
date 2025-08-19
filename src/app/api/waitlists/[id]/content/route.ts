@@ -103,9 +103,9 @@ export async function GET(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context:unknown
 ) {
-  const id = params.id;
+  const { id } = (context as { params: { id: string } }).params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
