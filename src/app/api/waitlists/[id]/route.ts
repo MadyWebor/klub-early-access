@@ -30,8 +30,8 @@ async function getId(ctx: Ctx): Promise<string> {
   return p.id;
 }
 
-export async function GET(_req: NextRequest, ctx: Ctx) {
-  const id = await getId(ctx);
+export async function GET(_req: NextRequest, context:unknown) {
+  const { id } = (context as { params: { id: string } }).params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
