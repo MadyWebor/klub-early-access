@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse , NextRequest} from "next/server";
 import { prisma } from "@/lib/db";
 
 function isProbableId(s: string) {
@@ -17,7 +17,7 @@ function safeHandle(url?: string | null) {
 
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export async function GET(
-  req: Request,
+  req: NextRequest,
   { params }: { params: { idOrSlug: string } }
 ) {
   const key = params.idOrSlug;
