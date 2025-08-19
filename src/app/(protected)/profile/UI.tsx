@@ -92,6 +92,7 @@ export default function Profile() {
   const [errors, setErrors] = useState<Errors>({});
   const [alertMsg, setAlertMsg] = useState<string>(""); // general/server error
   const [alertKind, setAlertKind] = useState<"error" | "success">("error");
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   async function uploadFileToStorage(file: File) {
     try {

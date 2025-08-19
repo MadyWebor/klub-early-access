@@ -164,11 +164,11 @@ function Editor({
       <div className={`rounded-[12px] border overflow-hidden ${borderClass}`}>
         <div className="flex items-center gap-2 px-3 py-2 border-b border-[#ECECEC] bg-[#FAFAFA]">
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={highlight} disabled={disabled}
-                  className="h-8 px-3 rounded-[10px] border border-[#ECECEC] text-[12px] disabled:opacity-50">
+            className="h-8 px-3 rounded-[10px] border border-[#ECECEC] text-[12px] disabled:opacity-50">
             Highlight
           </button>
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={clearHighlights} disabled={disabled}
-                  className="h-8 px-3 rounded-[10px] border border-[#ECECEC] text-[12px] disabled:opacity-50">
+            className="h-8 px-3 rounded-[10px] border border-[#ECECEC] text-[12px] disabled:opacity-50">
             Clear
           </button>
           <span className="ml-auto text-[11px] text-[#9a9a9a]">Only highlight is enabled</span>
@@ -214,6 +214,8 @@ function Editor({
 // ──────────────────────────────────────────────────────────────
 export default function CourseDetailsSection() {
   const router = useRouter();
+  const [uploadingImage, setUploadingImage] = useState(false);
+  
 
   // waitlist identity + loading/saving flags
   const [waitlistId, setWaitlistId] = useState<string | null>(null);
@@ -317,26 +319,28 @@ export default function CourseDetailsSection() {
 
   // UI helpers
   const inputBorder = (hasError: boolean) =>
-    `w-full h-[44px] rounded-[12px] px-3 text-[14px] outline-none border ${
-      hasError ? 'border-red-300 ring-2 ring-red-200' : 'border-[#ECECEC] focus:ring-2 focus:ring-[#0A5DBC]/20'
+    `w-full h-[44px] rounded-[12px] px-3 text-[14px] outline-none border ${hasError ? 'border-red-300 ring-2 ring-red-200' : 'border-[#ECECEC] focus:ring-2 focus:ring-[#0A5DBC]/20'
     }`;
 
   const randomSlug = () => setField('slug', Math.random().toString(36).slice(2, 9));
 
   // file pick
-  const onPickFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
-    setTouched((t) => ({ ...t, thumbnailUrl: true }));
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      if (!waitlistId) throw new Error('Waitlist not ready');
-      const url = await uploadImageForWaitlist(file, waitlistId);
-      setField('thumbnailUrl', url);
-    } catch (err) {
-      console.error(err);
-      alert((err as Error).message || 'Upload failed');
-    }
-  };
+const onPickFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+  setTouched((t) => ({ ...t, thumbnailUrl: true }));
+  const file = e.target.files?.[0];
+  if (!file) return;
+  try {
+    if (!waitlistId) throw new Error('Waitlist not ready');
+    setUploadingImage(true); // start loader
+    const url = await uploadImageForWaitlist(file, waitlistId);
+    setField('thumbnailUrl', url);
+  } catch (err) {
+    console.error(err);
+    alert((err as Error).message || 'Upload failed');
+  } finally {
+    setUploadingImage(false); // stop loader
+  }
+};
 
   // save & go next
   const onSaveAndNext = async () => {
@@ -365,168 +369,172 @@ export default function CourseDetailsSection() {
 
   const onGoBack = () => router.push('/profile');
 
-  return (
-    <section className="w-full h-full flex flex-col rounded-[16px]">
-      {/* Scrollable card (no container overflow) */}
-      <div className="w-full flex-1 border border-[#ECECEC] rounded-[16px] overflow-y-auto overflow-x-hidden p-3 sm:p-4">
-        <div className="mx-auto w-full max-w-[680px] flex flex-col gap-4">
+  if (loading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#0A5DBC] border-solid" />
+      </div>
+    );
+  }
 
-          {/* Course Title */}
-          <div>
-            <label className="block text-[12px] text-[#787878] mb-2">Course Title</label>
+
+  return (
+    <form className="w-full h-full flex flex-col pb-4">
+      <div className='flex flex-col h-[90%] w-full overflow-y-auto overflow-x-hidden gap-4 sm:gap-6 pb-6'>
+        {/* <div> */}
+        <Editor
+          label="Course Title"
+          html={state.title}
+          onHtml={(v) => setField('title', v)}
+          placeholder="Your step by step guide to taking control of your health"
+          disabled={loading || saving}
+          error={showErr('title') ? errors.title : undefined}
+          onBlur={() => setTouched((t) => ({ ...t, title: true }))}
+        />
+        <div>
+        <label className="block text-[12px] text-[#787878] mb-2">Course Bio</label>
+          <textarea
+            disabled={loading || saving}
+            value={state.bioHtml}
+            onChange={(e) => setField('bioHtml', e.target.value)}
+            onBlur={() => setTouched((t) => ({ ...t, bioHtml: true }))}
+            placeholder="Your guide to getting rid of Acid Reflux in 30 days"
+            aria-invalid={showErr('bioHtml')}
+            aria-describedby={showErr('bioHtml') ? 'err-bioHtml' : undefined}
+            className={inputBorder(showErr('bioHtml'))}
+          />
+          {showErr('bioHtml') && (
+            <p id="err-bioHtml" className="mt-1 text-[12px] text-red-600">{errors.bioHtml}</p>
+          )}
+        </div>
+
+        <Editor
+          label="About Course"
+          html={state.aboutHtml}
+          onHtml={(v) => setField('aboutHtml', v)}
+          placeholder="Be one of the first to get exclusive, early-access to this groundbreaking course. Sign up now."
+          disabled={loading || saving}
+          error={showErr('aboutHtml') ? errors.aboutHtml : undefined}
+          onBlur={() => setTouched((t) => ({ ...t, aboutHtml: true }))}
+        />
+
+        <div>
+          <label className="block text-[12px] text-[#787878] mb-2">Slug (public URL for your waitlist page)</label>
+          <div className="flex items-stretch">
+            <span className="select-none inline-flex items-center px-3 rounded-l-[12px] border border-r-0 border-[#ECECEC] bg-[#FAFAFA] text-[13px] text-[#787878]">
+              {window.location.origin}/wait-list/
+            </span>
             <input
               disabled={loading || saving}
-              value={state.title}
-              onChange={(e) => setField('title', e.target.value)}
-              onBlur={() => setTouched((t) => ({ ...t, title: true }))}
-              placeholder="Your guide to getting rid of Acid Reflux in 30 days"
-              aria-invalid={showErr('title')}
-              aria-describedby={showErr('title') ? 'err-title' : undefined}
-              className={inputBorder(showErr('title'))}
-            />
-            {showErr('title') && (
-              <p id="err-title" className="mt-1 text-[12px] text-red-600">{errors.title}</p>
-            )}
-          </div>
-
-          {/* Bio */}
-          <Editor
-            label="Course Bio"
-            html={state.bioHtml}
-            onHtml={(v) => setField('bioHtml', v)}
-            placeholder="Your step by step guide to taking control of your health"
-            disabled={loading || saving}
-            error={showErr('bioHtml') ? errors.bioHtml : undefined}
-            onBlur={() => setTouched((t) => ({ ...t, bioHtml: true }))}
-          />
-
-          {/* About */}
-          <Editor
-            label="About Course"
-            html={state.aboutHtml}
-            onHtml={(v) => setField('aboutHtml', v)}
-            placeholder="Be one of the first to get exclusive, early-access to this groundbreaking course. Sign up now."
-            disabled={loading || saving}
-            error={showErr('aboutHtml') ? errors.aboutHtml : undefined}
-            onBlur={() => setTouched((t) => ({ ...t, aboutHtml: true }))}
-          />
-
-          {/* Slug */}
-          <div>
-            <label className="block text-[12px] text-[#787878] mb-2">Slug (public URL for your waitlist page)</label>
-            <div className="flex items-stretch">
-              <span className="select-none inline-flex items-center px-3 rounded-l-[12px] border border-r-0 border-[#ECECEC] bg-[#FAFAFA] text-[13px] text-[#787878]">
-                klub.tld.com/k/
-              </span>
-              <input
-                disabled={loading || saving}
-                value={state.slug}
-                onChange={(e) => setField('slug', e.target.value.replace(/[^a-z0-9-]/g, '').toLowerCase())}
-                onBlur={() => setTouched((t) => ({ ...t, slug: true }))}
-                placeholder="fitwithdranjali"
-                aria-invalid={showErr('slug')}
-                aria-describedby={showErr('slug') ? 'err-slug' : undefined}
-                className={`flex-1 h-[44px] rounded-r-none border border-l-0 border-r-0 px-3 text-[14px] outline-none ${
-                  showErr('slug') ? 'border-red-300 ring-2 ring-red-200' : 'border-[#ECECEC] focus:ring-2 focus:ring-[#0A5DBC]/20'
+              value={state.slug}
+              onChange={(e) => setField('slug', e.target.value.replace(/[^a-z0-9-]/g, '').toLowerCase())}
+              onBlur={() => setTouched((t) => ({ ...t, slug: true }))}
+              placeholder="fitwithdranjali"
+              aria-invalid={showErr('slug')}
+              aria-describedby={showErr('slug') ? 'err-slug' : undefined}
+              className={`flex-1 h-[44px] rounded-r-none border border-l-0 border-r-0 px-3 text-[14px] outline-none ${showErr('slug') ? 'border-red-300 ring-2 ring-red-200' : 'border-[#ECECEC] focus:ring-2 focus:ring-[#0A5DBC]/20'
                 }`}
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setTouched((t) => ({ ...t, slug: true }));
-                  randomSlug();
-                }}
-                className="px-3 rounded-r-[12px] border border-l-0 border-[#ECECEC] bg-white"
-                title="Generate"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
-                  <path d="M21 12a9 9 0 1 1-2.64-6.36" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                  <path d="M21 5v5h-5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                </svg>
-              </button>
-            </div>
-            {showErr('slug') && (
-              <p id="err-slug" className="mt-1 text-[12px] text-red-600">{errors.slug}</p>
-            )}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setTouched((t) => ({ ...t, slug: true }));
+                randomSlug();
+              }}
+              className="px-3 rounded-r-[12px] border border-l-0 border-[#ECECEC] bg-white"
+              title="Generate"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
+                <path d="M21 12a9 9 0 1 1-2.64-6.36" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M21 5v5h-5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            </button>
           </div>
-
-          {/* Thumbnail */}
-          <div>
-            <label className="block text-[12px] text-[#787878] mb-2">Course Thumbnail</label>
-            <div className="flex items-start gap-3">
-              <div
-                className={`w-[108px] h-[108px] rounded-[16px] overflow-hidden flex items-center justify-center ${
-                  showErr('thumbnailUrl') ? 'border border-red-300 ring-2 ring-red-200' : 'border border-[#ECECEC]'
-                } bg-[#F6F6F6]`}
-              >
-                {state.thumbnailUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={state.thumbnailUrl as string} alt="Course thumbnail" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-[12px] text-[#9a9a9a]">200×200</span>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2">
-                  <label
-                    htmlFor="thumbFile"
-                    className="cursor-pointer h-[36px] px-4 rounded-[10px] border border-[#ECECEC] inline-flex items-center text-[13px]"
-                  >
-                    + Upload new
-                  </label>
-                  <input
-                    id="thumbFile"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    className="hidden"
-                    onChange={onPickFile}
-                    onBlur={() => setTouched((t) => ({ ...t, thumbnailUrl: true }))}
-                    disabled={loading || saving}
-                  />
-                  {state.thumbnailUrl ? (
-                    <button
-                      type="button"
-                      onClick={() => { setTouched((t) => ({ ...t, thumbnailUrl: true })); setField('thumbnailUrl', ''); }}
-                      className="h-[36px] px-4 rounded-[10px] border border-[#ECECEC] text-[13px] text-red-600"
-                    >
-                      Remove
-                    </button>
-                  ) : null}
-                </div>
-                {showErr('thumbnailUrl') && (
-                  <p className="text-[12px] text-red-600">{errors.thumbnailUrl}</p>
-                )}
-                <p className="text-[11px] text-[#9a9a9a]">200 × 200 px size recommended · JPG / PNG / WEBP</p>
-              </div>
-            </div>
-          </div>
-
+          {showErr('slug') && (
+            <p id="err-slug" className="mt-1 text-[12px] text-red-600">{errors.slug}</p>
+          )}
         </div>
-      </div>
 
-      {/* Footer actions */}
-      <div className="w-full border-t border-[#ECECEC] pt-4 mt-4">
-        <div className="flex items-center justify-end gap-2 sm:gap-4">
+        <div>
+          <label className="block text-[12px] text-[#787878] mb-2">Course Thumbnail</label>
+          <div className="flex items-start gap-3">
+<div
+  className={`w-[108px] h-[108px] rounded-[16px] overflow-hidden flex items-center justify-center ${
+    showErr('thumbnailUrl') ? 'border border-red-300 ring-2 ring-red-200' : 'border border-[#ECECEC]'
+  } bg-[#F6F6F6]`}
+>
+  {uploadingImage ? (
+    <div className="w-full h-full rounded-[15px] bg-gray-200 animate-pulse flex items-center justify-center">
+      <div className="w-6 h-6 rounded-full bg-gray-300" />
+    </div>
+  ) : state.thumbnailUrl ? (
+    <img
+      src={state.thumbnailUrl as string}
+      alt="Course thumbnail"
+      className="w-full h-full object-cover"
+    />
+  ) : (
+    <span className="text-[12px] text-[#9a9a9a]">200×200</span>
+  )}
+</div>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="thumbFile"
+                  className="cursor-pointer h-[36px] px-4 rounded-[10px] border border-[#ECECEC] inline-flex items-center text-[13px]"
+                >
+                  + Upload new
+                </label>
+                <input
+                  id="thumbFile"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={onPickFile}
+                  onBlur={() => setTouched((t) => ({ ...t, thumbnailUrl: true }))}
+                  disabled={loading || saving}
+                />
+                {state.thumbnailUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => { setTouched((t) => ({ ...t, thumbnailUrl: true })); setField('thumbnailUrl', ''); }}
+                    className="h-[36px] px-4 rounded-[10px] border border-[#ECECEC] text-[13px] text-red-600"
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+              {showErr('thumbnailUrl') && (
+                <p className="text-[12px] text-red-600">{errors.thumbnailUrl}</p>
+              )}
+              <p className="text-[11px] text-[#9a9a9a]">200 × 200 px size recommended · JPG / PNG / WEBP</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div className='flex justify-end w-full h-[10%] border-t border-[#ECECEC] gap-4'>
+        <div className='flex flex-col justify-center items-center '>
           <button
             type="button"
             onClick={onGoBack}
-            className="w-[90px] sm:w-[113px] h-[40px] sm:h-[44px] border border-[#ECECEC] rounded-[15px] flex items-center justify-center text-[#787878] text-[14px] sm:text-[16px] font-[500] leading-[24px]"
+            className="w-[90px] sm:w-[100px] h-[35px] sm:h-[44px] border border-[#ECECEC] rounded-[10px] sm:rounded-[15px] flex items-center justify-center text-[#787878] text-[14px] sm:text-[16px] font-[500] leading-[24px]"
           >
             Go back
           </button>
+        </div>
+        <div className='flex flex-col justify-center items-center'>
           <button
             type="button"
             onClick={onSaveAndNext}
             disabled={loading || saving || !isValid || !waitlistId}
-            className={`w-[100px] sm:w-[126px] h-[40px] sm:h-[44px] rounded-[15px] flex items-center justify-center text-white text-[14px] sm:text-[16px] font-[500] leading-[24px] ${
-              loading || saving || !isValid || !waitlistId ? 'bg-[#0A5DBC]/60 cursor-not-allowed' : 'bg-[#0A5DBC]'
-            }`}
+            className={`w-[110px] sm:w-[126px] h-[35px] sm:h-[44px] rounded-[10px] sm:rounded-[15px] flex items-center justify-center text-white text-[14px] sm:text-[16px] font-[500] leading-[24px] ${loading || saving || !isValid || !waitlistId ? 'bg-[#0A5DBC]/60 cursor-not-allowed' : 'bg-[#0A5DBC]'
+              }`}
           >
             {saving ? 'Saving…' : 'Save & Next'}
           </button>
         </div>
       </div>
-    </section>
+    </form>
   );
 }
