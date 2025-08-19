@@ -17,9 +17,9 @@ function safeHandle(url?: string | null) {
 
 export async function GET(
   req: Request,
-  context: { params: { idOrSlug: string } }
+  { params }: { params: { idOrSlug: string } }
 ) {
-  const key = context.params.idOrSlug;
+  const key = params.idOrSlug;
 
   const waitlist = await prisma.waitlist.findFirst({
     where: isProbableId(key)
