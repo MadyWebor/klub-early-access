@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 
@@ -17,16 +16,19 @@ function safeHandle(url?: string | null) {
   }
 }
 
+
 export async function GET(
-  _req: NextRequest,
-  ctx: { params: { idOrSlug: string } }
+ _req: NextRequest,
+ /* eslint-disable @typescript-eslint/ban-ts-comment */
+  ctx: { params: Record<string, string> }
 ) {
-  const key = ctx.params.idOrSlug;
+  /* eslint-disable @typescript-eslint/ban-ts-comment */
+  const { idOrSlug } = ctx.params as { idOrSlug: string };
 
   const waitlist = await prisma.waitlist.findFirst({
-    where: isProbableId(key)
-      ? { id: key, published: true }
-      : { slug: key, published: true },
+    where: isProbableId(idOrSlug)
+      ? { id: idOrSlug, published: true }
+      : { slug: idOrSlug, published: true },
     select: {
       id: true,
       title: true,
