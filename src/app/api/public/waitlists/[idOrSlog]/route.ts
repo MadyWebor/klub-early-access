@@ -15,7 +15,8 @@ function safeHandle(url?: string | null) {
   }
 }
 
-export async function GET(_req: Request, { params }: { params: { idOrSlug: string } }) {
+export async function GET(req: Request,
+  { params }: { params: { idOrSlug: string } }) {
   const key = params.idOrSlug;
 
   const waitlist = await prisma.waitlist.findFirst({
