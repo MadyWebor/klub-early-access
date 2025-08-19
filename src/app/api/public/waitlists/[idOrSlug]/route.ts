@@ -16,11 +16,19 @@ function safeHandle(url?: string | null) {
   }
 }
 
+type Ctx =
+  | { params: { idOrSlug: string } }
+  | { params: Promise<{ idOrSlug: string }> };
+
+async function getId(ctx: Ctx): Promise<string> {
+  const p = "then" in ctx.params ? await (ctx.params as Promise<{ idOrSlug: string }>) : (ctx.params as { idOrSlug: string });
+  return p.idOrSlug;
+}
+
 export async function GET(
-  _req: NextRequest,
-  { params }: { params: { idOrSlug: string } }
+  _req: NextRequest, ctx: Ctx
 ) {
-  const { idOrSlug } = params;
+  const idOrSlug = await getId(ctx);
 
   const waitlist = await prisma.waitlist.findFirst({
     where: isProbableId(idOrSlug)
