@@ -183,12 +183,12 @@ model Payment {
   currency     String
   status       PaymentStatus   @default(CREATED)
   externalId   String?
-  orderId      String?
+  orderId      String?         @unique
   receipt      String?
   rawResponse  Json?
   createdAt    DateTime        @default(now())
   capturedAt   DateTime?
-  subscriber   Subscriber      @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  subscriber   Subscriber      @relation(fields: [subscriberId], references: [id])
   waitlist     Waitlist        @relation(fields: [waitlistId], references: [id], onDelete: Cascade)
 
   @@index([waitlistId, status])

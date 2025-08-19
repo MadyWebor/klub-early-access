@@ -90,9 +90,10 @@ export default async function PublicWaitlistPage({ params }: PageProps) {
   ].filter(Boolean) as { label: string; handle: string; icon: string; href: string }[];
 
   const data: WaitListData = {
+    id: w.id,
     ownerName,
     ownerImage: w.owner?.image || "/user.jpg",
-    buttonLabel: w.buttonLabel || (w.priceAmount != null ? `Join for ₹${(w.priceAmount / 100).toFixed(0)}` : "Join"),
+    buttonLabel: w.buttonLabel || (w.priceAmount != null ? `Join for ₹${(w.priceAmount).toFixed(0)}` : "Join"),
     features: w.benefits.map((b) => b.text),
     socials,
     faqs: w.faqs.map((f) => ({ q: f.question, a: f.answer })),

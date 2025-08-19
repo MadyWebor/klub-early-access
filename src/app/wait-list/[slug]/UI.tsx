@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react';
+import React, { useState } from 'react';
 import { CiPlay1, CiStar } from "react-icons/ci";
 import { BsVectorPen } from "react-icons/bs";
 import { RiApps2Line } from "react-icons/ri";
@@ -9,6 +9,8 @@ import { IoCheckmark } from "react-icons/io5";
 import { FaQuestion } from "react-icons/fa6";
 import BannerCarousel from './Carousel';
 import ModalWaitlist from './SuccessModal';
+import ModalWaitlistFailed from './ModalWaitListFailed';
+import { set } from 'zod';
 
 // types for data props
 type Social = { label: string; handle: string; icon: string; href: string };
@@ -53,10 +55,14 @@ type Props = {
     subTextOverride?: string;   // sub text override
     launchDate?: string;        // launch date override
     aboutOverride?: string;     // about section override
-    trustedBy?:number;
+    trustedBy?: number;
+    id: string;
+    priceAmount?: number; // price amount for subscription
+    currency?: string; // currency for subscription
 };
 
 const WaitList: React.FC<Props> = ({
+    id,
     ownerName = "Dr. Anjali Shah",
     ownerImage = "/user.jpg",
     buttonLabel = "Join for Rs. 50",
@@ -69,7 +75,9 @@ const WaitList: React.FC<Props> = ({
     subTextOverride,
     launchDate,
     aboutOverride,
-    trustedBy
+    trustedBy,
+    priceAmount,
+    currency
 }) => {
 
 
@@ -84,13 +92,93 @@ const WaitList: React.FC<Props> = ({
         });
         return `Launching on ${formatted}`;
     }, [launchDate]);
+    const [email, setEmail] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [successOpen, setSuccessOpen] = useState(false);
+    const [failedOpen, setFailedOpen] = useState(false);
 
-    const [open, setOpen] = React.useState(false);
     const [openIdx, setOpenIdx] = React.useState<number | null>(null);
     const toggle = (i: number) => setOpenIdx(prev => (prev === i ? null : i));
 
+    const loadRazorpayScript = (): Promise<boolean> => {
+        return new Promise((resolve) => {
+            const script = document.createElement("script");
+            script.src = "https://checkout.razorpay.com/v1/checkout.js";
+            script.onload = () => resolve(true);
+            script.onerror = () => resolve(false);
+            document.body.appendChild(script);
+        });
+    };
+
+
+const handleSubscribe = async () => {
+    if (!email) return alert("Enter your email");
+
+    setLoading(true); // start loading
+    try {
+        // 1️⃣ Create subscriber & order
+        const res = await fetch("/api/subscribers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, waitlistId: id, priceAmount, currency }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+            setFailedOpen(true); // show failed modal
+            return;
+        }
+
+        const { order } = data;
+
+        // 2️⃣ Load Razorpay script
+        const loaded = await loadRazorpayScript();
+        if (!loaded) {
+            setFailedOpen(true);
+            setLoading(false);
+            return;
+        }
+
+        // 3️⃣ Open Razorpay checkout
+        const rzp = new (window as any).Razorpay({
+            key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+            amount: order.amount,
+            currency: order.currency,
+            name: "Your Course",
+            order_id: order.id,
+            handler: async (response: any) => {
+                // 4️⃣ Verify payment
+                try {
+                    const verifyRes = await fetch("/api/payment/verify", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(response),
+                    });
+
+                    const verifyData = await verifyRes.json();
+                    if (verifyData.success) setSuccessOpen(true);
+                    else setFailedOpen(true);
+                } catch (err) {
+                    console.error(err);
+                    setFailedOpen(true);
+                } finally {
+                    setLoading(false);
+                }
+            },
+            prefill: { email, vpa: 'test@upi' },
+            theme: { color: "#0A5DBC" },
+        });
+
+        rzp.open();
+    } catch (err) {
+        console.error(err);
+        setFailedOpen(true);
+        setLoading(false);
+    }
+};
     return <div className='w-screen h-screen overflow-hidden flex flex-col bg-[#F6F6F6]'>
-        <ModalWaitlist open={open} onClose={() => setOpen(false)} />
+        <ModalWaitlist open={successOpen} onClose={() => setSuccessOpen(false)} />
+        <ModalWaitlistFailed open={failedOpen} onClose={() => setFailedOpen(false)} />
 
         {/* Header */}
         <div className="w-screen flex justify-center h-[80px] sm:h-[113px] shadow-[0px_2px_20px_0px_#2A2A2A0D] bg-[#F6F6F6]">
@@ -177,16 +265,19 @@ const WaitList: React.FC<Props> = ({
                     <div className="w-full sm:w-auto relative">
                         <input
                             type="email"
+                            onChange={(e) => setEmail(e.target.value)}
                             className="w-full sm:w-[400px] md:w-[450px] h-[76px] sm:h-[70px] md:h-[82px] rounded-[40px] sm:rounded-[50px] md:rounded-[60px] bg-white indent-4 sm:indent-6 md:indent-7 border border-[#ECECEC] focus:outline-none focus:ring-2 focus:ring-[#0A5DBC]/40 placeholder:text-sm sm:placeholder:text-base"
                             placeholder="Please enter your email..."
                         />
                         <div className="flex flex-col justify-center items-center h-[76px] sm:h-[70px] md:h-[82px] absolute top-0 right-2 sm:right-2 md:right-3">
                             <button
+                                type='button'
                                 className="text-white bg-[#0A5DBC] h-[50px] sm:h-[46px] md:h-[50px] px-4 sm:px-[18px] md:px-[20px] text-sm sm:text-[14px] font-normal flex justify-center items-center rounded-full shadow-md hover:bg-[#094c9a] transition gap-2"
-                                onClick={() => setOpen(true)}
+                                onClick={handleSubscribe}
+                                disabled={loading}
                             >
+                                {loading ? "Joining..." : buttonLabel}
                                 <BsVectorPen className='w-[18px] h-[18px]' />
-                                {buttonLabel}
                             </button>
                         </div>
                     </div>
@@ -218,25 +309,25 @@ const WaitList: React.FC<Props> = ({
                             <span className="text-[14px] sm:text-[15px] md:text-[16px] font-normal">About</span>
                         </div>
 
-<div className="w-full mt-3 sm:mt-[15px] text-[#787878] px-4 sm:px-0">
-  {aboutOverride ? (
-    <span
-      className="block text-[24px] sm:text-[24px] md:text-[36px] font-semibold leading-snug sm:leading-normal md:leading-[1.3] sm:text-left"
-      dangerouslySetInnerHTML={{
-        __html: aboutOverride.replace(
-          /<mark[^>]*>(.*?)<\/mark>/g,
-          `<span class='text-[#000]'>$1</span>`
-        ),
-      }}
-    />
-  ) : (
-    <span className="block text-[24px] sm:text-[24px] md:text-[36px] font-semibold leading-snug sm:leading-normal md:leading-[1.3] sm:text-left">
-      Learn how to <span className="text-[#000]">fix acid reflux naturally</span> with simple diet, lifestyle, and{" "}
-      <span className="text-[#000]">gut-healing strategies</span>. This course helps you find lasting relief{" "}
-      <span className="text-[#000]">without relying on medication</span>.
-    </span>
-  )}
-</div>
+                        <div className="w-full mt-3 sm:mt-[15px] text-[#787878] px-4 sm:px-0">
+                            {aboutOverride ? (
+                                <span
+                                    className="block text-[24px] sm:text-[24px] md:text-[36px] font-semibold leading-snug sm:leading-normal md:leading-[1.3] sm:text-left"
+                                    dangerouslySetInnerHTML={{
+                                        __html: aboutOverride.replace(
+                                            /<mark[^>]*>(.*?)<\/mark>/g,
+                                            `<span class='text-[#000]'>$1</span>`
+                                        ),
+                                    }}
+                                />
+                            ) : (
+                                <span className="block text-[24px] sm:text-[24px] md:text-[36px] font-semibold leading-snug sm:leading-normal md:leading-[1.3] sm:text-left">
+                                    Learn how to <span className="text-[#000]">fix acid reflux naturally</span> with simple diet, lifestyle, and{" "}
+                                    <span className="text-[#000]">gut-healing strategies</span>. This course helps you find lasting relief{" "}
+                                    <span className="text-[#000]">without relying on medication</span>.
+                                </span>
+                            )}
+                        </div>
 
                         <div className="mt-[30px] w-full bg-white rounded-[20px] px-[15px] pt-[25px] pb-[15px]">
                             {/* Dots */}

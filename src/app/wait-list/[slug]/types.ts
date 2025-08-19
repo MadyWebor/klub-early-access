@@ -1,4 +1,5 @@
 export type WaitListData = {
+  id: string,
   ownerName: string;
   ownerImage?: string;
   buttonLabel?: string;

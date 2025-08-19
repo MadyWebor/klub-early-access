@@ -1,11 +1,13 @@
 // src/app/api/subscribers/route.ts
 export const runtime = "nodejs";
 
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth"; // if you're on next-auth v5 wrapper, see comment below
+import Razorpay from "razorpay";
+import { v4 as uuidv4 } from "uuid";
 
 // If you're on NextAuth v5 `auth()` helper instead of getServerSession, you can:
 // import { auth } from "@/app/auth";
@@ -78,40 +80,63 @@ export async function GET(req: Request) {
   });
 }
 
-export async function POST(req: Request) {
-  const body = await req.json();
-  const parsed = postSchema.safeParse(body);
-  if (!parsed.success) return NextResponse.json({ message: "Invalid body", issues: parsed.error.issues }, { status: 400 });
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID!,
+  key_secret: process.env.RAZORPAY_KEY_SECRET!,
+});
 
-  // const session = await auth(); // for next-auth v5 wrapper
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+export async function POST(req: NextRequest) {
+  try {
+    const { email, waitlistId, priceAmount, currency } = await req.json();
 
-  // Only owner can create subscribers (e.g., webhook -> you might bypass with secret in a different route)
-  const wl = await prisma.waitlist.findFirst({
-    where: { id: parsed.data.waitlistId, ownerId: session.user.id },
-    select: { id: true },
-  });
-  if (!wl) return NextResponse.json({ message: "Waitlist not found or forbidden" }, { status: 404 });
+    if (!email || !waitlistId || !priceAmount) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
 
-  // Upsert by (waitlistId, email)
-  const sub = await prisma.subscriber.upsert({
-    where: { waitlistId_email: { waitlistId: parsed.data.waitlistId, email: parsed.data.email } },
-    create: {
-      waitlistId: parsed.data.waitlistId,
-      fullName: parsed.data.fullName,
-      email: parsed.data.email,
-      priceAmount: parsed.data.priceAmount,
-      currency: parsed.data.currency || "INR",
-      status: parsed.data.status,
-    },
-    update: {
-      fullName: parsed.data.fullName ?? undefined,
-      priceAmount: parsed.data.priceAmount ?? undefined,
-      currency: parsed.data.currency ?? undefined,
-      status: parsed.data.status ?? undefined,
-    },
-  });
+    // 1️⃣ Create or get subscriber
+    let subscriber = await prisma.subscriber.upsert({
+      where: { waitlistId_email: { waitlistId, email } },
+      update: {},
+      create: {
+        email,
+        // fullName,
+        waitlistId,
+        priceAmount,
+        currency,
+      },
+    });
 
-  return NextResponse.json({ data: sub }, { status: 201 });
+    // 2️⃣ Create Razorpay Order
+    const options = {
+      amount: priceAmount * 100, // in paise
+      currency: currency || "INR",
+      receipt: `rcpt_${Date.now()}`,
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    let payment = await prisma.payment.findUnique({
+      where: { subscriberId: subscriber.id },
+    });
+
+    if (!payment) {
+      payment = await prisma.payment.create({
+        data: {
+          waitlistId,
+          subscriberId: subscriber.id,
+          provider: "RAZORPAY",
+          amount: priceAmount,
+          currency: currency || "INR",
+          status: "CREATED",
+          orderId: order.id,
+        },
+      });
+    }
+
+    return NextResponse.json({ subscriber, payment, order });
+  } catch (err: any) {
+    console.error(err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
 }
+
