@@ -1,4 +1,3 @@
-// src/app/api/public/waitlists/[idOrSlug]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
@@ -18,9 +17,11 @@ function safeHandle(url?: string | null) {
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { idOrSlug: string } }
+  context: unknown // ✅ keep it untyped here
 ) {
-  const { idOrSlug } = params;
+  // ✅ safely assert the shape
+  const { idOrSlug } = (context as { params: { idOrSlug: string } }).params;
+
 
   const waitlist = await prisma.waitlist.findFirst({
     where: isProbableId(idOrSlug)
