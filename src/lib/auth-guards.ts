@@ -2,7 +2,6 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { nextOnboardingPath } from "./onboarding";
 
 /**
  * For public pages: If logged in, send to remaining step (or /dashboard).
@@ -17,7 +16,7 @@ export async function redirectAuthedToNextStepOnPublic() {
     select: { onboardingStatus: true },
   });
 
-  redirect(nextOnboardingPath(user?.onboardingStatus));
+  // redirect(nextOnboardingPath(user?.onboardingStatus));
 }
 
 /**
@@ -34,7 +33,7 @@ export async function enforceAuthAndStepGate() {
   });
 
   if (user?.onboardingStatus !== "completed") {
-    redirect(nextOnboardingPath(user?.onboardingStatus));
+    // redirect(nextOnboardingPath(user?.onboardingStatus));
   }
 
   // OK to render the protected content
