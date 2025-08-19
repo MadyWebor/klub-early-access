@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 1️⃣ Create or get subscriber
-    let subscriber = await prisma.subscriber.upsert({
+    const subscriber = await prisma.subscriber.upsert({
       where: { waitlistId_email: { waitlistId, email } },
       update: {},
       create: {
