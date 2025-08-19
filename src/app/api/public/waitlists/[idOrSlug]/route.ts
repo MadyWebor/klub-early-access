@@ -15,12 +15,22 @@ function safeHandle(url?: string | null) {
   }
 }
 
+
+async function getId(ctx: Ctx): Promise<string> {
+  const p = "then" in ctx.params ? await (ctx.params as Promise<{ idOrSlug: string }>) : (ctx.params as { idOrSlug: string });
+  return p.idOrSlug;
+}
+
+
+type Ctx =
+  | { params: { idOrSlug: string } }
+  | { params: Promise<{ idOrSlug: string }> };
+
 // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export async function GET(
-  req: NextRequest,
-  { params }: { params: { idOrSlug: string } }
+  _req: NextRequest, ctx: Ctx
 ) {
-  const key = params.idOrSlug;
+  const key = await getId(ctx);
 
   const waitlist = await prisma.waitlist.findFirst({
     where: isProbableId(key)
