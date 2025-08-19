@@ -1,4 +1,4 @@
-import { NextResponse , NextRequest} from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 
 function isProbableId(s: string) {
@@ -15,22 +15,11 @@ function safeHandle(url?: string | null) {
   }
 }
 
-
-async function getId(ctx: Ctx): Promise<string> {
-  const p = "then" in ctx.params ? await (ctx.params as Promise<{ idOrSlug: string }>) : (ctx.params as { idOrSlug: string });
-  return p.idOrSlug;
-}
-
-
-type Ctx =
-  | { params: { idOrSlug: string } }
-  | { params: Promise<{ idOrSlug: string }> };
-
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export async function GET(
-  _req: NextRequest, ctx: Ctx
+  _req: NextRequest,
+  ctx: { params: { idOrSlug: string } }
 ) {
-  const key = await getId(ctx);
+  const key = ctx.params.idOrSlug;
 
   const waitlist = await prisma.waitlist.findFirst({
     where: isProbableId(key)
