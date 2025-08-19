@@ -5,9 +5,6 @@ import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
-import { setOnboardingCookie } from "@/lib/onboarding";
-import type { OnboardingStatus } from "@/middleware";
-
 
 // ──────────────────────────────────────────────────────────────
 // Validation for PATCH
@@ -32,22 +29,19 @@ const ContentSchema = z.object({
 
 // ──────────────────────────────────────────────────────────────
 // GET  /api/waitlists/[id]/content
-// Returns the content the UI expects to hydrate the form
 // ──────────────────────────────────────────────────────────────
-export async function GET(
-  _req: NextRequest,
-  context:unknown
-) {
-  const { id } = (context as { params: { id: string } }).params;
+export async function GET(_req: NextRequest, context: unknown) {
+  const { id } = await (context as { params: { id: string } }).params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: { message: "Unauthorized" } }, { status: 401 });
   }
 
   const waitlist = await prisma.waitlist.findUnique({
-    where: { id: id },
-    select: { id: true, ownerId: true, bannerVideoUrl: true },
+    where: { id },
+    select: { id: true, ownerId: true, bannerVideoUrl: true, }
   });
+
   if (!waitlist || waitlist.ownerId !== session.user.id) {
     return NextResponse.json({ ok: false, error: { message: "Not found" } }, { status: 404 });
   }
@@ -101,13 +95,13 @@ export async function GET(
   return NextResponse.json({ ok: true, content });
 }
 
-export async function PATCH(
-  req: NextRequest,
-  context:unknown
-) {
-  const { id } = (context as { params: { id: string } }).params;
-
+// ──────────────────────────────────────────────────────────────
+// PATCH  /api/waitlists/[id]/content
+// ──────────────────────────────────────────────────────────────
+export async function PATCH(req: NextRequest, context: unknown) {
+  const { id } =  await (context as { params: { id: string } }).params;
   const session = await getServerSession(authOptions);
+
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: { message: "Unauthorized" } }, { status: 401 });
   }
@@ -117,7 +111,9 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: { message: "Not found" } }, { status: 404 });
   }
 
+
   const body = await req.json();
+  console.log(body)
   const parsed = ContentSchema.safeParse(body);
   if (!parsed.success) {
     const msg = parsed.error.issues[0]?.message ?? "Invalid payload";
@@ -127,7 +123,7 @@ export async function PATCH(
   const { media, bannerVideoUrl, benefits, socials, faqs } = parsed.data;
 
   await prisma.$transaction([
-    prisma.waitlist.update({ where: { id }, data: { bannerVideoUrl } }),
+    prisma.waitlist.update({ where: { id }, data: { bannerVideoUrl  } }),
     prisma.waitlistMedia.deleteMany({ where: { waitlistId: id } }),
     prisma.waitlistMedia.createMany({
       data: media.map((url, i) => ({
@@ -180,8 +176,5 @@ export async function PATCH(
       data: { onboardingStatus: "price" },
     }),
   ]);
-
-  // 👇 keep cookie in sync so middleware allows /price
-  const res = NextResponse.json({ ok: true });
-  return setOnboardingCookie(res, "price");
+  return NextResponse.json({ ok: true });
 }

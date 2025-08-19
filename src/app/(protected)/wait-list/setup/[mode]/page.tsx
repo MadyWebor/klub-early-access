@@ -8,6 +8,8 @@ import { redirect } from "next/navigation";
 import WaitListSetup from "./UI";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getAllowedOnboardingPath } from "@/lib/onboarding";
+
 
 type Mode = "course" | "content" | "price";
 type Props = { params: Promise<{ mode: Mode }> };
@@ -22,6 +24,15 @@ export default async function WaitListSetupPage({ params }: Props) {
     select: { onboardingStatus: true, name:true,image:true, handle:true },
   });
   if (!user) redirect("/signin");
+    const userStatus = user.onboardingStatus;
+  const requestedStep = mode;
+  const redirectPath = getAllowedOnboardingPath(userStatus, requestedStep);
+
+  if (redirectPath) {
+    redirect(redirectPath)
+  } else {
+    console.log("User can access this step");
+  }
 
   return <WaitListSetup name={user.name} image={user.image} handle={user.handle} />;
 }

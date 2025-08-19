@@ -8,6 +8,8 @@ import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Dashboard from "./UI";
 
+import { getAllowedOnboardingPath } from "@/lib/onboarding";
+
 function money(amount?: number | null, currency = "INR") {
   if (amount == null) return null;
   return {
@@ -120,6 +122,17 @@ export default async function DashboardPage() {
       })),
     })),
   };
+
+  const userStatus = me.onboardingStatus;
+  const requestedStep = "completed";
+
+  const redirectPath = getAllowedOnboardingPath(userStatus, requestedStep);
+
+  if (redirectPath) {
+    redirect(redirectPath)
+  } else {
+    console.log("User can access this step");
+  }
 
   return <Dashboard initialData={payload} />;
 }

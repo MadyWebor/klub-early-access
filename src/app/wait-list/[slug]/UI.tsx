@@ -53,6 +53,7 @@ type Props = {
     subTextOverride?: string;   // sub text override
     launchDate?: string;        // launch date override
     aboutOverride?: string;     // about section override
+    trustedBy?:number;
 };
 
 const WaitList: React.FC<Props> = ({
@@ -67,7 +68,8 @@ const WaitList: React.FC<Props> = ({
     titleOverride,
     subTextOverride,
     launchDate,
-    aboutOverride
+    aboutOverride,
+    trustedBy
 }) => {
 
 
@@ -204,7 +206,7 @@ const WaitList: React.FC<Props> = ({
                             </span>
                         </div>
                         <span className="text-[#686868] text-[12px] sm:text-[14px] font-medium">
-                            Trusted by 500+ patients
+                            Trusted by {trustedBy}+ patients
                         </span>
                     </div>
                 </div>

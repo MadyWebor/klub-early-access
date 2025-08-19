@@ -11,7 +11,7 @@ type Params = { params: { id: string } };
 
 export async function DELETE(_req: Request, context: unknown) {
 
-   const { id } = (context as { params: { id: string } }).params;
+   const { id } = await (context as { params: { id: string } }).params;
 
   // const session = await auth(); // for next-auth v5 wrapper
   const session = await getServerSession(authOptions);

@@ -5,7 +5,6 @@ import { prisma } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { NextRequest, NextResponse } from 'next/server';
-import { setOnboardingCookie } from '@/lib/onboarding';
 
 // ──────────────────────────────────────────────────────────────
 // Validation
@@ -29,7 +28,7 @@ export async function GET(
   _req: NextRequest,
  context: unknown
 ) {
-  const { id } = (context as { params: { id: string } }).params;
+  const { id } = await (context as { params: { id: string } }).params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return NextResponse.json(
@@ -77,7 +76,7 @@ export async function PATCH(
   req: NextRequest,
    context: unknown
 ) {
-  const { id } = (context as { params: { id: string } }).params;
+  const { id } = await (context as { params: { id: string } }).params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return NextResponse.json(
@@ -130,7 +129,7 @@ export async function PATCH(
       }),
     ]);
     const res = NextResponse.json({ ok: true, status: 'published' });
-    return setOnboardingCookie(res, 'completed');
+    return res
   } else {
     await prisma.$transaction([
       prisma.waitlist.update({ where: { id: id }, data }),
@@ -145,6 +144,6 @@ export async function PATCH(
       }),
     ]);
     const res = NextResponse.json({ ok: true, status: 'saved' });
-    return setOnboardingCookie(res, 'price');
+    return res
   }
 }

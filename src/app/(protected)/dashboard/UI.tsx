@@ -64,6 +64,7 @@ const fmtDateTime = (iso?: string | null) =>
 const Dashboard: React.FC<Props> = ({ initialData }) => {
   const router = useRouter();
 
+  const [loading, setLoading] = useState(false); // <-- add loading state
   const [activeWaitlistId, setActiveWaitlistId] = useState<string | null>(
     initialData.waitlists[0]?.id ?? null
   );
@@ -73,11 +74,10 @@ const Dashboard: React.FC<Props> = ({ initialData }) => {
     return initialData.waitlists.find(w => w.id === activeWaitlistId) ?? null;
   }, [activeWaitlistId, initialData.waitlists]);
 
-  // Local, editable subscriber list (for DELETE UX)
   const [subs, setSubs] = useState<SubscriberRow[]>(current?.subscribers ?? []);
   useEffect(() => {
     setSubs(current?.subscribers ?? []);
-  }, [current?.id]); // refresh when switching waitlists
+  }, [current?.id]);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
@@ -88,8 +88,9 @@ const Dashboard: React.FC<Props> = ({ initialData }) => {
   const remove = async (id: string) => {
     const ok = confirm("Delete this subscriber?");
     if (!ok || !current) return;
+
     try {
-      // If your API needs waitlistId, add ?waitlistId=current.id
+      setLoading(true); // <-- show loader during delete
       await fetch(`/api/subscribers/${id}`, { method: "DELETE", headers: { 'Content-Type': 'application/json' } });
       setSubs(s => s.filter(x => x.id !== id));
     } catch (e: unknown) {
@@ -98,10 +99,21 @@ const Dashboard: React.FC<Props> = ({ initialData }) => {
       } else {
         alert("Failed to delete");
       }
+    } finally {
+      setLoading(false); // <-- hide loader after delete
     }
   };
 
-  // ─────────── Empty states ───────────
+  // ─────────── Loader ───────────
+  if (loading) {
+    return (
+      <div className="w-screen h-screen flex items-center justify-center bg-[#F6F6F6]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#0A5DBC] border-solid" />
+      </div>
+    );
+  }
+
+  // ─────────── Empty state ───────────
   if (!current) {
     return (
       <div className="min-h-screen w-full bg-[#F6F6F6] flex items-center justify-center p-6">
@@ -171,7 +183,7 @@ const Dashboard: React.FC<Props> = ({ initialData }) => {
                 {/* Title & Meta */}
                 <div className="flex flex-col justify-center gap-2 text-[#000]">
                   <span className="text-[14px] sm:text-[16px] font-[600] leading-snug">
-                    {current.title || "Untitled waitlist"}
+                    {(current.title || "Untitled waitlist").replace(/<mark[^>]*>(.*?)<\/mark>/g, '$1')}
                   </span>
                   <span className="text-[12px] sm:text-[14px] font-[500] text-[#787878]">
                     {current.published
@@ -182,8 +194,8 @@ const Dashboard: React.FC<Props> = ({ initialData }) => {
 
                 {/* Actions */}
                 <div className="justify-between gap-3 sm:gap-0 mt-4 sm:mt-0 hidden sm:flex">
-                  <div className="flex flex-col justify-center items-center">
-                    <span className="flex gap-2 text-[12px] sm:text-[14px] font-[500] break-all text-center sm:text-left">
+                  <div className="flex flex-col">
+                    <span className="flex gap-2 text-[12px] sm:text-[14px] font-[500] break-all text-left">
                       {current.publicUrl}
                       <GoCopy onClick={() => copyToClipboard(current.publicUrl)} className="cursor-pointer" />
                     </span>
@@ -290,7 +302,7 @@ const Dashboard: React.FC<Props> = ({ initialData }) => {
           </div>
 
           {/* Bottom bar */}
-          <div className='w-full flex flex-col justify-center items-center h-[20%]'>
+          <div className='w-full flex flex-col justify-center items-center h-[20%] fixed bottom-0 left-0 z-[9999]'>
             <div className="flex items-center flex-wrap gap-3 sm:gap-4 rounded-[18px] border border-[#EFEFEF] bg-white px-4 sm:px-6 py-3 sm:py-4">
               <span className="text-[20px] sm:text-[22px] font-[700] italic text-[#111] hidden sm:block">Klub</span>
               <span className="hidden sm:block h-6 w-px bg-[#E7E7E8]" />

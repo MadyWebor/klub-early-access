@@ -104,6 +104,7 @@ CREATE TABLE "public"."Waitlist" (
     "slug" TEXT,
     "thumbnailUrl" TEXT,
     "bannerVideoUrl" TEXT,
+    "trustedBy" INTEGER,
     "currency" TEXT NOT NULL DEFAULT 'INR',
     "priceAmount" INTEGER,
     "launchDate" TIMESTAMP(3),

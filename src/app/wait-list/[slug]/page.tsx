@@ -1,7 +1,7 @@
-// app/wait-list/[slug]/page.tsx
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
-import WaitList from "./UI";
+import WaitListPageWrapper from "./Wrapper";
+import { WaitListData } from "./types"; // WaitListData type
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -9,7 +9,7 @@ interface PageProps {
 
 export default async function PublicWaitlistPage({ params }: PageProps) {
   const key = (await params).slug?.trim();
-  if (!key) notFound(); // no slug in URL -> 404
+  if (!key) notFound();
 
   const w = await prisma.waitlist.findFirst({
     where: { slug: key, published: true },
@@ -19,6 +19,7 @@ export default async function PublicWaitlistPage({ params }: PageProps) {
       courseBio: true,
       about: true,
       slug: true,
+      trustedBy: true,
       thumbnailUrl: true,
       bannerVideoUrl: true,
       currency: true,
@@ -61,20 +62,13 @@ export default async function PublicWaitlistPage({ params }: PageProps) {
 
   if (!w) notFound();
 
-  const ownerName =
-    w.owner?.fullName ||
-    w.owner?.name ||
-    w.owner?.username ||
-    w.owner?.handle ||
-    "Creator";
+  const ownerName = w.owner?.fullName || w.owner?.name || w.owner?.username || w.owner?.handle || "Creator";
 
   const slides = w.media.map((m) => ({
     type: m.kind === "VIDEO" ? ("video" as const) : ("image" as const),
     src: m.url,
   }));
-  if (!slides.length && w.thumbnailUrl) {
-    slides.push({ type: "image" as const, src: w.thumbnailUrl });
-  }
+  if (!slides.length && w.thumbnailUrl) slides.push({ type: "image", src: w.thumbnailUrl });
 
   const safeHandle = (url?: string | null) => {
     if (!url) return "";
@@ -87,68 +81,32 @@ export default async function PublicWaitlistPage({ params }: PageProps) {
   };
 
   const socials = [
-    w.socials?.instagramUrl && {
-      label: "Instagram",
-      handle: safeHandle(w.socials.instagramUrl),
-      icon: "/insta.png",
-      href: w.socials.instagramUrl!,
-    },
-    w.socials?.facebookUrl && {
-      label: "Facebook",
-      handle: safeHandle(w.socials.facebookUrl),
-      icon: "/facebook.png",
-      href: w.socials.facebookUrl!,
-    },
-    w.socials?.linkedinUrl && {
-      label: "LinkedIn",
-      handle: safeHandle(w.socials.linkedinUrl),
-      icon: "/linkedin.png",
-      href: w.socials.linkedinUrl!,
-    },
-    w.socials?.xUrl && {
-      label: "X",
-      handle: safeHandle(w.socials.xUrl),
-      icon: "/x.png",
-      href: w.socials.xUrl!,
-    },
-    w.socials?.youtubeUrl && {
-      label: "YouTube",
-      handle: safeHandle(w.socials.youtubeUrl),
-      icon: "/youtube.png",
-      href: w.socials.youtubeUrl!,
-    },
-    w.socials?.websiteUrl && {
-      label: "Website",
-      handle: safeHandle(w.socials.websiteUrl),
-      icon: "/link.png",
-      href: w.socials.websiteUrl!,
-    },
-  ].filter(Boolean) as {
-    label: string;
-    handle: string;
-    icon: string;
-    href: string;
-  }[];
+    w.socials?.instagramUrl && { label: "Instagram", handle: safeHandle(w.socials.instagramUrl), icon: "/insta.png", href: w.socials.instagramUrl },
+    w.socials?.facebookUrl && { label: "Facebook", handle: safeHandle(w.socials.facebookUrl), icon: "/facebook.png", href: w.socials.facebookUrl },
+    w.socials?.linkedinUrl && { label: "LinkedIn", handle: safeHandle(w.socials.linkedinUrl), icon: "/linkedin.png", href: w.socials.linkedinUrl },
+    w.socials?.xUrl && { label: "X", handle: safeHandle(w.socials.xUrl), icon: "/x.png", href: w.socials.xUrl },
+    w.socials?.youtubeUrl && { label: "YouTube", handle: safeHandle(w.socials.youtubeUrl), icon: "/youtube.png", href: w.socials.youtubeUrl },
+    w.socials?.websiteUrl && { label: "Website", handle: safeHandle(w.socials.websiteUrl), icon: "/link.png", href: w.socials.websiteUrl },
+  ].filter(Boolean) as { label: string; handle: string; icon: string; href: string }[];
 
-  return (
-    <WaitList
-      ownerName={ownerName}
-      ownerImage={w.owner?.image || "/user.jpg"}
-      buttonLabel={
-        w.buttonLabel ||
-        (w.priceAmount != null
-          ? `Join for ₹${(w.priceAmount / 100).toFixed(0)}`
-          : "Join")
-      }
-      features={w.benefits.map((b) => b.text)}
-      socials={socials}
-      faqs={w.faqs.map((f) => ({ q: f.question, a: f.answer }))}
-      slides={slides}
-      bannerVideoUrl={w.bannerVideoUrl || undefined}
-      titleOverride={w.title}
-      subTextOverride={w.courseBio || undefined}
-      launchDate={w.launchDate ? w.launchDate.toISOString() : undefined}
-      aboutOverride={w.about || undefined}
-    />
-  );
+  const data: WaitListData = {
+    ownerName,
+    ownerImage: w.owner?.image || "/user.jpg",
+    buttonLabel: w.buttonLabel || (w.priceAmount != null ? `Join for ₹${(w.priceAmount / 100).toFixed(0)}` : "Join"),
+    features: w.benefits.map((b) => b.text),
+    socials,
+    faqs: w.faqs.map((f) => ({ q: f.question, a: f.answer })),
+    slides,
+    bannerVideoUrl: w.bannerVideoUrl || undefined,
+    titleOverride: w.title,
+    subTextOverride: w.courseBio || undefined,
+    launchDate: w.launchDate ? w.launchDate.toISOString() : undefined,
+    aboutOverride: w.about || undefined,
+    trustedBy: w.trustedBy || 0,
+    currency: w.currency || undefined,
+    priceAmount: w.priceAmount || undefined,
+    slug: w.slug ?? '',
+  };
+
+  return <WaitListPageWrapper serverData={data} />;
 }

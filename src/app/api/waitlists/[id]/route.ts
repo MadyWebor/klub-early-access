@@ -18,6 +18,7 @@ const PatchSchema = z.object({
     .min(3)
     .regex(slugRegex, "Use 3+ chars: lowercase letters, numbers, and hyphens."),
   thumbnailUrl: z.string().url().optional().or(z.literal("")).nullable(),
+  trustedBy: z.number().int().optional().nullable(), // ✅ added
 });
 
 // Helper: works whether Next gives params sync or as a Promise
@@ -30,7 +31,7 @@ async function getId(ctx: Ctx): Promise<string> {
   return p.id;
 }
 
-export async function GET(_req: NextRequest, context:unknown) {
+export async function GET(_req: NextRequest, context: unknown) {
   const { id } = (context as { params: { id: string } }).params;
 
   const session = await getServerSession(authOptions);
@@ -48,6 +49,7 @@ export async function GET(_req: NextRequest, context:unknown) {
       about: true,
       slug: true,
       thumbnailUrl: true,
+      trustedBy: true, // ✅ added
       createdAt: true,
       updatedAt: true,
     },
@@ -66,15 +68,15 @@ export async function GET(_req: NextRequest, context:unknown) {
       aboutHtml: wl.about ?? "",
       slug: wl.slug ?? "",
       thumbnailUrl: wl.thumbnailUrl ?? "",
+      trustedBy: wl.trustedBy ?? null, // ✅ added
       createdAt: wl.createdAt,
       updatedAt: wl.updatedAt,
     },
   });
 }
 
-export async function PATCH(req: NextRequest, context:unknown) {
+export async function PATCH(req: NextRequest, context: unknown) {
   const { id } = (context as { params: { id: string } }).params;
-
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -95,7 +97,8 @@ export async function PATCH(req: NextRequest, context:unknown) {
     const msg = parsed.error.issues[0]?.message ?? "Invalid payload";
     return NextResponse.json({ ok: false, error: { message: msg } }, { status: 400 });
   }
-  const { title, bioHtml, aboutHtml, slug, thumbnailUrl } = parsed.data;
+
+  const { title, bioHtml, aboutHtml, slug, thumbnailUrl, trustedBy } = parsed.data; // ✅ added
 
   // Slug uniqueness
   if (slug) {
@@ -119,6 +122,7 @@ export async function PATCH(req: NextRequest, context:unknown) {
       about: aboutHtml,
       slug,
       thumbnailUrl: thumbnailUrl || null,
+      trustedBy: trustedBy ?? null, // ✅ added
     },
     select: {
       id: true,
@@ -127,6 +131,7 @@ export async function PATCH(req: NextRequest, context:unknown) {
       about: true,
       slug: true,
       thumbnailUrl: true,
+      trustedBy: true, // ✅ added
       updatedAt: true,
     },
   });
@@ -154,6 +159,7 @@ export async function PATCH(req: NextRequest, context:unknown) {
       aboutHtml: updated.about ?? "",
       slug: updated.slug ?? "",
       thumbnailUrl: updated.thumbnailUrl ?? "",
+      trustedBy: updated.trustedBy ?? null, // ✅ added
       updatedAt: updated.updatedAt,
     },
   });

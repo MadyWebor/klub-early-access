@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 // ──────────────────────────────────────────────────────────────
@@ -20,7 +20,6 @@ const clamp = (n: number, min: number, max: number) =>
   Math.max(min, Math.min(max, n));
 
 const toMinor = (amt: string) => {
-  // accepts "79", "79.5", "79.50"
   const n = Number(amt.replace(/[^\d.]/g, ''));
   if (Number.isNaN(n)) return 0;
   return Math.round(n * 100);
@@ -34,16 +33,15 @@ const fromMinor = (minor?: number | null) =>
 export default function PriceSection() {
   const router = useRouter();
 
-  // ids & flags
   const [waitlistId, setWaitlistId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   // form state
   const [currency, setCurrency] = useState('INR');
-  const [priceInput, setPriceInput] = useState(''); // human string in rupees
-  const [launchDate, setLaunchDate] = useState<string>(''); // yyyy-mm-dd
-  const [buttonLabel, setButtonLabel] = useState<string>(''); // e.g. "Join for Rs. 79"
+  const [priceInput, setPriceInput] = useState('');
+  const [launchDate, setLaunchDate] = useState('');
+  const [buttonLabel, setButtonLabel] = useState('');
 
   // touched/errors
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -65,19 +63,17 @@ export default function PriceSection() {
           ok: true;
           price: {
             currency?: string;
-            priceAmount?: number | null; // minor
-            launchDate?: string | null;  // ISO
+            priceAmount?: number | null;
+            launchDate?: string | null;
             buttonLabel?: string | null;
             published?: boolean;
           };
-        }>(`/api/waitlists/${mine.waitlist.id}/price`, { method: 'GET' });
+        }>(`/api/waitlists/${mine.waitlist.id}/price`);
 
         if (!alive) return;
         setCurrency(got.price.currency || 'INR');
         setPriceInput(fromMinor(got.price.priceAmount));
-        setLaunchDate(
-          got.price.launchDate ? got.price.launchDate.slice(0, 10) : ''
-        );
+        setLaunchDate(got.price.launchDate?.slice(0, 10) || '');
         setButtonLabel(got.price.buttonLabel || '');
       } catch (e) {
         console.error('Price hydrate failed:', e);
@@ -90,7 +86,8 @@ export default function PriceSection() {
     };
   }, []);
 
-  const computeErrors = React.useCallback(() => {
+  // compute validation errors
+  const computeErrors = () => {
     const e: Record<string, string> = {};
     const minor = toMinor(priceInput);
     if (!priceInput.trim() || minor <= 0) e.price = 'Enter a valid price.';
@@ -98,33 +95,31 @@ export default function PriceSection() {
     if (!launchDate) e.launchDate = 'Select a launch date.';
     if (!buttonLabel.trim()) e.buttonLabel = 'Button label is required.';
     return e;
+  };
+
+  // always derive errors from state
+  React.useEffect(() => {
+    setErrors(computeErrors());
   }, [priceInput, currency, launchDate, buttonLabel]);
 
-  const isValid = useMemo(
-    () => Object.keys(computeErrors()).length === 0,
-    [computeErrors]
-  );
+  const isValid = Object.keys(errors).length === 0;
 
   const show = (key: string) => errors[key] && touched[key];
 
   const saveOrPublish = async (publish: boolean) => {
-    const e = computeErrors();
-    setErrors(e);
-    if (Object.keys(e).length > 0 || !waitlistId || saving || loading) return;
-
+    if (!waitlistId || saving || loading || !isValid) return;
     try {
       setSaving(true);
       await jsonFetch(`/api/waitlists/${waitlistId}/price`, {
         method: 'PATCH',
         body: JSON.stringify({
           currency,
-          priceAmount: clamp(toMinor(priceInput), 1, 10_000_000_000), // guardrails
-          launchDate, // yyyy-mm-dd
+          priceAmount: clamp(toMinor(priceInput), 1, 10_000_000_000),
+          launchDate,
           buttonLabel,
           publish,
         }),
       });
-
       router.refresh();
       router.push(publish ? '/dashboard' : '/wait-list/setup/price');
     } catch (e) {
@@ -135,132 +130,119 @@ export default function PriceSection() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#0A5DBC] border-solid" />
+      </div>
+    );
+  }
+
   const onGoBack = () => router.push('/wait-list/setup/content');
 
   return (
-    <section className="w-full h-full flex flex-col min-h-0">
-      {/* scrollable body */}
-      <div className="flex-col flex w-full h-[90%] overflow-y-auto">
-        <div className="w-full min-h-0 h-full overflow-y-auto overflow-x-hidden p-3 sm:p-4 overscroll-contain scrollbar-gutter-stable">
-          <div className="mx-auto w-full max-w-[640px] flex flex-col gap-6">
-            <div>
-              <label className="text-sm font-medium">Course Price</label>
-              <div className="mt-2 mb-2 text-[12px] flex items-center gap-2 bg-[#FFF8E1] border border-[#FFE8A3] rounded-md px-2 py-1">
-                <span>ⓘ</span>
-                <span>We recommend keeping it under Rs. 150</span>
-              </div>
+    <form className="w-full h-full flex flex-col pb-4">
+      <div className="flex flex-col h-[90%] w-full overflow-y-auto overflow-x-hidden gap-4 sm:gap-6 pb-6">
+        <label className="text-sm font-medium">Course Price</label>
+        <div className="mt-2 mb-2 text-[12px] flex items-center gap-2 bg-[#FFF8E1] border border-[#FFE8A3] rounded-md px-2 py-1">
+          <span>ⓘ</span>
+          <span>We recommend keeping it under Rs. 150</span>
+        </div>
 
-              {/* amount */}
-              <div className="flex gap-2">
-                <div className="w-[90px]">
-                  <input
-                    type="text"
-                    value={currency}
-                    disabled={loading || saving}
-                    onChange={(e) =>
-                      setCurrency(e.target.value.toUpperCase().slice(0, 3))
-                    }
-                    onBlur={() => setTouched((t) => ({ ...t, currency: true }))}
-                    placeholder="INR"
-                    className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm text-center"
-                  />
-                  {show('currency') && (
-                    <p className="text-red-500 text-xs mt-1">{errors.currency}</p>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#787878]">
-                      Rs.
-                    </span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={priceInput}
-                      disabled={loading || saving}
-                      onChange={(e) => setPriceInput(e.target.value)}
-                      onBlur={() => setTouched((t) => ({ ...t, price: true }))}
-                      placeholder="79"
-                      className="w-full border border-[#ECECEC] rounded-lg pl-10 pr-3 py-2 text-sm"
-                    />
-                  </div>
-                  {show('price') && (
-                    <p className="text-red-500 text-xs mt-1">{errors.price}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* date */}
-            <div>
-              <label className="text-sm font-medium">Course launch date</label>
-              <div className="mt-2">
-                <input
-                  type="date"
-                  value={launchDate}
-                  disabled={loading || saving}
-                  onChange={(e) => setLaunchDate(e.target.value)}
-                  onBlur={() =>
-                    setTouched((t) => ({ ...t, launchDate: true }))
-                  }
-                  className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm"
-                />
-                {show('launchDate') && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.launchDate}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* button label */}
-            <div>
-              <label className="text-sm font-medium">Button Label</label>
-              <input
-                type="text"
-                value={buttonLabel}
-                disabled={loading || saving}
-                onChange={(e) => setButtonLabel(e.target.value)}
-                onBlur={() =>
-                  setTouched((t) => ({ ...t, buttonLabel: true }))
-                }
-                placeholder="Join for Rs. 79"
-                className="mt-2 w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm"
-              />
-              {show('buttonLabel') && (
-                <p className="text-red-500 text-xs mt-1">
-                  {errors.buttonLabel}
-                </p>
-              )}
-            </div>
+        <div className="flex gap-2">
+          <div className="w-[90px]">
+            <input
+              type="text"
+              value={currency}
+              disabled={loading || saving}
+              onChange={(e) => setCurrency(e.target.value.toUpperCase().slice(0, 3))}
+              onBlur={() => setTouched((t) => ({ ...t, currency: true }))}
+              placeholder="INR"
+              className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm text-center"
+            />
+            {show('currency') && (
+              <p className="text-red-500 text-xs mt-1">{errors.currency}</p>
+            )}
           </div>
+
+          <div className="flex-1 relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#787878]">Rs.</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={priceInput}
+              disabled={loading || saving}
+              onChange={(e) => setPriceInput(e.target.value)}
+              onBlur={() => setTouched((t) => ({ ...t, price: true }))}
+              placeholder="79"
+              className="w-full border border-[#ECECEC] rounded-lg pl-10 pr-3 py-2 text-sm"
+            />
+            {show('price') && (
+              <p className="text-red-500 text-xs mt-1">{errors.price}</p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium">Course launch date</label>
+          <div className="mt-2">
+            <input
+              type="date"
+              value={launchDate}
+              disabled={loading || saving}
+              onChange={(e) => setLaunchDate(e.target.value)}
+              onBlur={() => setTouched((t) => ({ ...t, launchDate: true }))}
+              className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm"
+            />
+            {show('launchDate') && (
+              <p className="text-red-500 text-xs mt-1">{errors.launchDate}</p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium">Button Label</label>
+          <input
+            type="text"
+            value={buttonLabel}
+            disabled={loading || saving}
+            onChange={(e) => setButtonLabel(e.target.value)}
+            onBlur={() => setTouched((t) => ({ ...t, buttonLabel: true }))}
+            className="w-full border border-[#ECECEC] rounded-lg px-3 py-2 text-sm"
+            placeholder="Join for Rs. 79"
+          />
+          {show('buttonLabel') && (
+            <p className="text-red-500 text-xs mt-1">{errors.buttonLabel}</p>
+          )}
         </div>
       </div>
 
-      {/* sticky footer */}
-      <div className="w-full h-[10%] border-t border-[#ECECEC] pt-4 mt-4 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60">
-        <div className="mx-auto max-w-[640px] flex items-center justify-between">
+      <div className="flex justify-end w-full h-[10%] border-t border-[#ECECEC] gap-4">
+        <div className="flex flex-col justify-center items-center">
           <button
             type="button"
             onClick={onGoBack}
-            className="w-[100px] h-[44px] border border-[#ECECEC] rounded-[15px] flex items-center justify-center text-[#787878] text-[14px] font-[500]"
+            className="w-[90px] sm:w-[100px] h-[35px] sm:h-[44px] border border-[#ECECEC] rounded-[10px] sm:rounded-[15px] flex items-center justify-center text-[#787878] text-[14px] sm:text-[16px] font-[500] leading-[24px]"
           >
             Go back
           </button>
+        </div>
+
+        <div className="flex flex-col justify-center items-center">
           <button
             type="button"
             onClick={() => saveOrPublish(true)}
             disabled={loading || saving || !isValid || !waitlistId}
-            className={`w-[150px] h-[44px] rounded-[15px] flex items-center justify-center text-white text-[14px] font-[500] ${
-              loading || saving || !isValid || !waitlistId
-                ? 'bg-[#0A5DBC]/60 cursor-not-allowed'
-                : 'bg-[#0A5DBC]'
-            }`}
+            className={`w-[110px] sm:w-[126px] h-[35px] sm:h-[44px] rounded-[10px] sm:rounded-[15px] flex items-center justify-center text-white text-[14px] sm:text-[16px] font-[500] leading-[24px] ${loading || saving || !isValid || !waitlistId
+              ? 'bg-[#0A5DBC]/60 cursor-not-allowed'
+              : 'bg-[#0A5DBC]'
+              }`}
           >
-            {saving ? 'Publishing…' : 'Publish Waitlist'}
+            {saving ? 'Publishing...' : 'Publish'}
           </button>
         </div>
+
       </div>
-    </section>
+    </form>
   );
 }

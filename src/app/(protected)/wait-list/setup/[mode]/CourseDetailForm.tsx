@@ -12,9 +12,12 @@ export type CourseDetails = {
   aboutHtml: string;
   slug: string;
   thumbnailUrl?: string | null;
+  trustedBy?: number | null; // add this
 };
 
-type CourseErrors = Partial<Record<'title' | 'bioHtml' | 'aboutHtml' | 'slug' | 'thumbnailUrl', string>>;
+type CourseErrors = Partial<
+  Record<'title' | 'bioHtml' | 'aboutHtml' | 'slug' | 'thumbnailUrl' | 'trustedBy', string>
+>;
 
 // ──────────────────────────────────────────────────────────────
 // Tiny helpers
@@ -215,29 +218,29 @@ function Editor({
 export default function CourseDetailsSection() {
   const router = useRouter();
   const [uploadingImage, setUploadingImage] = useState(false);
-  
+
 
   // waitlist identity + loading/saving flags
   const [waitlistId, setWaitlistId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // form state
   const [state, setState] = useState<CourseDetails>({
     title: '',
     bioHtml: '',
     aboutHtml: '',
     slug: '',
     thumbnailUrl: '',
+    trustedBy: 0,
   });
 
-  // touched tracker (only show errors after interaction)
   const [touched, setTouched] = useState<Record<keyof CourseDetails, boolean>>({
     title: false,
     bioHtml: false,
     aboutHtml: false,
     slug: false,
     thumbnailUrl: false,
+    trustedBy: false,
   });
 
   const setField = <K extends keyof CourseDetails>(k: K, v: CourseDetails[K]) => {
@@ -291,7 +294,6 @@ export default function CourseDetailsSection() {
     return () => { alive = false; };
   }, []);
 
-  // validation
   const errors: CourseErrors = useMemo(() => {
     const e: CourseErrors = {};
     if (!state.title || state.title.trim().length === 0) e.title = 'Course title is required.';
@@ -311,6 +313,12 @@ export default function CourseDetailsSection() {
     if (!state.thumbnailUrl || String(state.thumbnailUrl).trim().length === 0) {
       e.thumbnailUrl = 'Course thumbnail is required.';
     }
+
+    // ✅ TrustedBy validation
+    if (state.trustedBy === null || state.trustedBy === undefined || state.trustedBy < 1) {
+      e.trustedBy = 'Enter a number ≥ 1';
+    }
+
     return e;
   }, [state]);
 
@@ -325,22 +333,22 @@ export default function CourseDetailsSection() {
   const randomSlug = () => setField('slug', Math.random().toString(36).slice(2, 9));
 
   // file pick
-const onPickFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
-  setTouched((t) => ({ ...t, thumbnailUrl: true }));
-  const file = e.target.files?.[0];
-  if (!file) return;
-  try {
-    if (!waitlistId) throw new Error('Waitlist not ready');
-    setUploadingImage(true); // start loader
-    const url = await uploadImageForWaitlist(file, waitlistId);
-    setField('thumbnailUrl', url);
-  } catch (err) {
-    console.error(err);
-    alert((err as Error).message || 'Upload failed');
-  } finally {
-    setUploadingImage(false); // stop loader
-  }
-};
+  const onPickFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    setTouched((t) => ({ ...t, thumbnailUrl: true }));
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      if (!waitlistId) throw new Error('Waitlist not ready');
+      setUploadingImage(true); // start loader
+      const url = await uploadImageForWaitlist(file, waitlistId);
+      setField('thumbnailUrl', url);
+    } catch (err) {
+      console.error(err);
+      alert((err as Error).message || 'Upload failed');
+    } finally {
+      setUploadingImage(false); // stop loader
+    }
+  };
 
   // save & go next
   const onSaveAndNext = async () => {
@@ -355,6 +363,7 @@ const onPickFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
           aboutHtml: state.aboutHtml,
           slug: state.slug,
           thumbnailUrl: state.thumbnailUrl || '',
+          trustedBy: state.trustedBy ?? 0, // send number
         }),
       });
       router.refresh();
@@ -392,7 +401,7 @@ const onPickFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
           onBlur={() => setTouched((t) => ({ ...t, title: true }))}
         />
         <div>
-        <label className="block text-[12px] text-[#787878] mb-2">Course Bio</label>
+          <label className="block text-[12px] text-[#787878] mb-2">Course Bio</label>
           <textarea
             disabled={loading || saving}
             value={state.bioHtml}
@@ -417,6 +426,43 @@ const onPickFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
           error={showErr('aboutHtml') ? errors.aboutHtml : undefined}
           onBlur={() => setTouched((t) => ({ ...t, aboutHtml: true }))}
         />
+
+        <div>
+          <label className="block text-[12px] text-[#787878] mb-2">
+            Trusted By (number of people)
+          </label>
+          <div className="flex items-stretch">
+            <span className="select-none inline-flex items-center px-3 rounded-l-[12px] border border-r-0 border-[#ECECEC] bg-[#FAFAFA] text-[13px] text-[#787878]">
+              Trusted by
+            </span>
+            <input
+              type="number"
+              min={1}
+              disabled={loading || saving}
+              value={state.trustedBy ?? ''}
+              onChange={(e) => setField('trustedBy', e.target.value ? parseInt(e.target.value, 10) : null)}
+              onBlur={() => setTouched((t) => ({ ...t, trustedBy: true }))}
+              placeholder="1000"
+              aria-invalid={showErr('trustedBy')}
+              aria-describedby={showErr('trustedBy') ? 'err-trustedBy' : undefined}
+              className={`flex-1 h-[44px] rounded-none border border-l-0 border-r-0 px-3 text-[14px] outline-none
+    ${showErr('trustedBy')
+                  ? 'border-red-300 ring-2 ring-red-200'
+                  : 'border-[#ECECEC] focus:ring-2 focus:ring-[#0A5DBC]/20'
+                }
+    [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
+  `}
+            />
+            <span className="select-none inline-flex items-center px-3 rounded-r-[12px] border border-l-0 border-[#ECECEC] bg-[#FAFAFA] text-[13px] text-[#787878]">
+              people
+            </span>
+          </div>
+          {showErr("trustedBy") && (
+            <p id="err-trustedBy" className="mt-1 text-[12px] text-red-600">
+              {errors.trustedBy}
+            </p>
+          )}
+        </div>
 
         <div>
           <label className="block text-[12px] text-[#787878] mb-2">Slug (public URL for your waitlist page)</label>
@@ -458,25 +504,24 @@ const onPickFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
         <div>
           <label className="block text-[12px] text-[#787878] mb-2">Course Thumbnail</label>
           <div className="flex items-start gap-3">
-<div
-  className={`w-[108px] h-[108px] rounded-[16px] overflow-hidden flex items-center justify-center ${
-    showErr('thumbnailUrl') ? 'border border-red-300 ring-2 ring-red-200' : 'border border-[#ECECEC]'
-  } bg-[#F6F6F6]`}
->
-  {uploadingImage ? (
-    <div className="w-full h-full rounded-[15px] bg-gray-200 animate-pulse flex items-center justify-center">
-      <div className="w-6 h-6 rounded-full bg-gray-300" />
-    </div>
-  ) : state.thumbnailUrl ? (
-    <img
-      src={state.thumbnailUrl as string}
-      alt="Course thumbnail"
-      className="w-full h-full object-cover"
-    />
-  ) : (
-    <span className="text-[12px] text-[#9a9a9a]">200×200</span>
-  )}
-</div>
+            <div
+              className={`w-[108px] h-[108px] rounded-[16px] overflow-hidden flex items-center justify-center ${showErr('thumbnailUrl') ? 'border border-red-300 ring-2 ring-red-200' : 'border border-[#ECECEC]'
+                } bg-[#F6F6F6]`}
+            >
+              {uploadingImage ? (
+                <div className="w-full h-full rounded-[15px] bg-gray-200 animate-pulse flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-full bg-gray-300" />
+                </div>
+              ) : state.thumbnailUrl ? (
+                <img
+                  src={state.thumbnailUrl as string}
+                  alt="Course thumbnail"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <span className="text-[12px] text-[#9a9a9a]">200×200</span>
+              )}
+            </div>
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <label
