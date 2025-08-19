@@ -36,15 +36,16 @@ const ContentSchema = z.object({
 // ──────────────────────────────────────────────────────────────
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+  context:unknown
 ) {
+  const { id } = (context as { params: { id: string } }).params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: { message: "Unauthorized" } }, { status: 401 });
   }
 
   const waitlist = await prisma.waitlist.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     select: { id: true, ownerId: true, bannerVideoUrl: true },
   });
   if (!waitlist || waitlist.ownerId !== session.user.id) {
@@ -53,17 +54,17 @@ export async function GET(
 
   const [mediaRows, benefitRows, socialsRow, faqRows] = await Promise.all([
     prisma.waitlistMedia.findMany({
-      where: { waitlistId: params.id },
+      where: { waitlistId: id },
       orderBy: { displayOrder: "asc" },
       select: { url: true },
     }),
     prisma.waitlistBenefit.findMany({
-      where: { waitlistId: params.id },
+      where: { waitlistId: id },
       orderBy: { displayOrder: "asc" },
       select: { text: true },
     }),
     prisma.waitlistSocial.findUnique({
-      where: { waitlistId: params.id },
+      where: { waitlistId: id },
       select: {
         websiteUrl: true,
         youtubeUrl: true,
@@ -74,7 +75,7 @@ export async function GET(
       },
     }),
     prisma.waitlistFaq.findMany({
-      where: { waitlistId: params.id },
+      where: { waitlistId: id },
       orderBy: { displayOrder: "asc" },
       select: { question: true, answer: true },
     }),
