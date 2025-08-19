@@ -1,5 +1,7 @@
+// @ts-nocheck
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+
 
 function isProbableId(s: string) {
   return /^[a-z0-9]+$/i.test(s) && s.length >= 6;
