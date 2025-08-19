@@ -254,7 +254,7 @@ export default function Profile() {
       <div className="w-[90%] max-w-[680px] px-3 sm:px-6 md:px-8 py-6 sm:py-8">
         {/* Top badge */}
         <div className="w-full flex justify-end">
-          <div className="w-fit h-[34px] rounded-[10px] border border-[#D4E4F3] bg-[#E6EFF8] flex px-[10px] py-[5px] text-[#0A5DBC] gap-[6px]">
+          <div className="w-fit h-[28px] rounded-[10px] border border-[#D4E4F3] bg-[#E6EFF8] flex px-[10px] py-[5px] text-[#0A5DBC] gap-[6px]">
             <div className="flex items-center justify-center">
               <div className="w-[12px] h-[12px] rounded-full bg-[#0A5DBC]" />
             </div>

@@ -7,7 +7,7 @@ import { signIn } from 'next-auth/react';
 export default function Signin() {
   return (
     <div className='flex flex-col justify-center items-center w-screen h-screen'>
-      <div className='flex-col flex w-[85%] sm:w-[70%] md:w-[80%] lg:w-[45%] h-65[%] sm:h-[70%] gap-4'>
+      <div className='flex-col flex w-[85%] sm:w-[70%] md:w-[80%] lg:w-[45%] h-[65%] sm:h-[70%] gap-4'>
         {/* Early Access Badge */}
         <div className='w-full flex justify-end'>
           <div className="w-fit h-[28px] rounded-[10px] border border-[#D4E4F3] bg-[#E6EFF8] flex px-[10px] py-[5px] text-[#0A5DBC] gap-[6px]">
