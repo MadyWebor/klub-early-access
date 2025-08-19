@@ -27,8 +27,9 @@ const PriceSchema = z.object({
 // ──────────────────────────────────────────────────────────────
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { id: string } }
+ context: unknown
 ) {
+  const { id } = (context as { params: { id: string } }).params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return NextResponse.json(
@@ -37,7 +38,7 @@ export async function GET(
     );
 
   const w = await prisma.waitlist.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     select: {
       ownerId: true,
       currency: true,
@@ -74,8 +75,9 @@ export async function GET(
 // ──────────────────────────────────────────────────────────────
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+   context: unknown
 ) {
+  const { id } = (context as { params: { id: string } }).params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return NextResponse.json(
@@ -84,7 +86,7 @@ export async function PATCH(
     );
 
   const waitlist = await prisma.waitlist.findUnique({
-    where: { id: params.id },
+    where: { id: id },
     select: { ownerId: true },
   });
   if (!waitlist || waitlist.ownerId !== session.user.id)
@@ -114,7 +116,7 @@ export async function PATCH(
   if (publish) {
     await prisma.$transaction([
       prisma.waitlist.update({
-        where: { id: params.id },
+        where: { id: id },
         data: { ...data, published: true, publishedAt: new Date() },
       }),
       prisma.onboardingProgress.upsert({
@@ -131,7 +133,7 @@ export async function PATCH(
     return setOnboardingCookie(res, 'completed');
   } else {
     await prisma.$transaction([
-      prisma.waitlist.update({ where: { id: params.id }, data }),
+      prisma.waitlist.update({ where: { id: id }, data }),
       prisma.onboardingProgress.upsert({
         where: { userId: session.user.id },
         update: { priceDone: true },
