@@ -5,10 +5,9 @@ import crypto from "crypto";
 export async function POST(req: NextRequest) {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = await req.json();
-
-    const payment = await prisma.payment.findUnique({
-      where: { orderId: razorpay_order_id },
-    });
+const payment = await prisma.payment.findFirst({
+  where: { orderId: razorpay_order_id },
+});
 
     if (!payment) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
 

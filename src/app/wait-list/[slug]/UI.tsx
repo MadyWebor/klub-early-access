@@ -10,7 +10,28 @@ import { FaQuestion } from "react-icons/fa6";
 import BannerCarousel from './Carousel';
 import ModalWaitlist from './SuccessModal';
 import ModalWaitlistFailed from './ModalWaitListFailed';
-import { set } from 'zod';
+
+
+type RazorpayPaymentResponse = {
+    razorpay_payment_id: string;
+    razorpay_order_id: string;
+    razorpay_signature: string;
+};
+interface RazorpayOptions {
+    key: string;
+    amount: number;
+    currency: string;
+    name: string;
+    order_id: string;
+    handler: (response: RazorpayPaymentResponse) => void;
+    prefill?: { email: string; vpa?: string };
+    theme?: { color: string };
+}
+declare global {
+    interface Window {
+        Razorpay?: new (options: RazorpayOptions) => { open: () => void };
+    }
+}
 
 // types for data props
 type Social = { label: string; handle: string; icon: string; href: string };
@@ -111,10 +132,21 @@ const WaitList: React.FC<Props> = ({
     };
 
 
+type RazorpayOrder = {
+    id: string;
+    amount: number;
+    currency: string;
+};
+
+
+
+// Extend Window safely
+
+
 const handleSubscribe = async () => {
     if (!email) return alert("Enter your email");
+    setLoading(true);
 
-    setLoading(true); // start loading
     try {
         // 1️⃣ Create subscriber & order
         const res = await fetch("/api/subscribers", {
@@ -123,43 +155,40 @@ const handleSubscribe = async () => {
             body: JSON.stringify({ email, waitlistId: id, priceAmount, currency }),
         });
 
-        const data = await res.json();
-        if (!res.ok) {
-            setFailedOpen(true); // show failed modal
+        const data: { order: RazorpayOrder } = await res.json();
+
+        if (!res.ok || !data.order) {
+            setFailedOpen(true);
+            setLoading(false);
             return;
         }
 
-        const { order } = data;
-
         // 2️⃣ Load Razorpay script
         const loaded = await loadRazorpayScript();
-        if (!loaded) {
+        if (!loaded || !window.Razorpay) {
             setFailedOpen(true);
             setLoading(false);
             return;
         }
 
         // 3️⃣ Open Razorpay checkout
-        const rzp = new (window as any).Razorpay({
+        const rzp = new window.Razorpay({
             key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-            amount: order.amount,
-            currency: order.currency,
+            amount: data.order.amount,
+            currency: data.order.currency,
             name: "Your Course",
-            order_id: order.id,
-            handler: async (response: any) => {
-                // 4️⃣ Verify payment
+            order_id: data.order.id,
+            handler: async (response: RazorpayPaymentResponse) => {
                 try {
                     const verifyRes = await fetch("/api/payment/verify", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify(response),
                     });
-
-                    const verifyData = await verifyRes.json();
+                    const verifyData: { success: boolean } = await verifyRes.json();
                     if (verifyData.success) setSuccessOpen(true);
                     else setFailedOpen(true);
-                } catch (err) {
-                    console.error(err);
+                } catch {
                     setFailedOpen(true);
                 } finally {
                     setLoading(false);
@@ -170,12 +199,12 @@ const handleSubscribe = async () => {
         });
 
         rzp.open();
-    } catch (err) {
-        console.error(err);
+    } catch {
         setFailedOpen(true);
         setLoading(false);
     }
 };
+
     return <div className='w-screen h-screen overflow-hidden flex flex-col bg-[#F6F6F6]'>
         <ModalWaitlist open={successOpen} onClose={() => setSuccessOpen(false)} />
         <ModalWaitlistFailed open={failedOpen} onClose={() => setFailedOpen(false)} />

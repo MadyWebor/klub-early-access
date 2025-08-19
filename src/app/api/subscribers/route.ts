@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
 
     // 2️⃣ Create Razorpay Order
     const options = {
-      amount: priceAmount * 100, // in paise
+      amount: priceAmount, // in paise
       currency: currency || "INR",
       receipt: `rcpt_${Date.now()}`,
     };
@@ -134,9 +134,10 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ subscriber, payment, order });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
