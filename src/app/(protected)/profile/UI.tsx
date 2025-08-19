@@ -67,7 +67,7 @@ function Alert({
 function errorMessage(e: unknown, fallback: string) {
   if (e instanceof Error) return e.message;
   if (typeof e === "string") return e;
-  try { return JSON.stringify(e); } catch {}
+  try { return JSON.stringify(e); } catch { }
   return fallback;
 }
 
@@ -249,11 +249,19 @@ export default function Profile() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="w-screen h-screen flex justify-center items-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-[#0A5DBC] border-solid" />
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full min-h-[100vh] bg-white flex items-center justify-center">
-      <div className="w-[90%] max-w-[680px] px-3 sm:px-6 md:px-8 py-6 sm:py-8">
-        {/* Top badge */}
-        <div className="w-full flex justify-end">
+    <div className="w-screen h-screen flex flex-col justify-center items-center">
+      <div className='flex-col flex w-[92%] sm:w-[70%] md:w-[60%] lg:w-[35%] gap-4'>
+        {/* Early Access Badge */}
+        <div className='w-full flex justify-end'>
           <div className="w-fit h-[28px] rounded-[10px] border border-[#D4E4F3] bg-[#E6EFF8] flex px-[10px] py-[5px] text-[#0A5DBC] gap-[6px]">
             <div className="flex items-center justify-center">
               <div className="w-[12px] h-[12px] rounded-full bg-[#0A5DBC]" />
@@ -263,32 +271,27 @@ export default function Profile() {
             </div>
           </div>
         </div>
+        {/* Early Access Badge */}
 
-        {/* Papyrus Container */}
-        <div className="mt-6 w-full rounded-[20px] bg-[url('/papyrus.png')] bg-cover bg-center shadow-md">
-          <div className="flex flex-col gap-4 sm:gap-5 p-4 sm:p-6 md:p-8 text-[#2A2A2A]">
-            {/* Heading */}
-            <div>
-              <span className="font-semibold leading-tight text-[20px] sm:text-[22px] md:text-[26px]">
-                Let&apos;s <span className="text-[#0A5DBC]">Setup your profile</span>
-              </span>
-              <p className="mt-2 sm:mt-3 text-[#787878] font-[500] text-[14px] sm:text-[15px] md:text-[16px]">
-                Personalize how you will appear to people on Klub
-              </p>
-            </div>
-
-            {/* Global alert (server/form errors) */}
-            {alertMsg ? (
-              <Alert
-                kind={alertKind}
-                message={alertMsg}
-                onClose={() => setAlertMsg("")}
-              />
-            ) : null}
-
-            {/* Avatar + Edit */}
-            <div className="w-full flex justify-center">
-              <div className="relative w-[72px] h-[72px] sm:w-[85px] sm:h-[85px] border-2 rounded-[15px] border-[#000000] p-[2px] bg-white shadow">
+        <div className="w-full h-auto flex flex-col rounded-[20px] bg-[url('/papyrus.png')] bg-center py-[30px] px-[20px] sm:py-[40px] sm:px-[30px] gap-4 sm:gap-8">
+          <div>
+            <span className="font-semibold leading-tight text-[20px] sm:text-[22px] md:text-[26px]">
+              Let&apos;s <span className="text-[#0A5DBC]">Setup your profile</span>
+            </span>
+            <p className="mt-2 sm:mt-3 text-[#787878] font-[500] text-[14px] sm:text-[15px] md:text-[16px]">
+              Personalize how you will appear to people on Klub
+            </p>
+          </div>
+          {alertMsg ? (
+            <Alert
+              kind={alertKind}
+              message={alertMsg}
+              onClose={() => setAlertMsg("")}
+            />
+          ) : null}
+          <div className="w-full flex justify-center">
+            {!uploading ?<div className="relative w-[72px] h-[72px] sm:w-[85px] sm:h-[85px] border-2 rounded-[15px] border-[#000000] p-[2px] bg-white shadow">
+               <>
                 <div className="w-full h-full rounded-[15px] overflow-hidden">
                   <img
                     src={image || "/user.jpg"}
@@ -329,141 +332,140 @@ export default function Profile() {
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) uploadFileToStorage(file);
-                    e.currentTarget.value = ""; // allow re-select same file
+                    e.currentTarget.value = "";
                   }}
-                />
+                /></>
+                
+            </div>:<div className="relative w-[72px] h-[72px] sm:w-[85px] sm:h-[85px] ">
+                  <div className="w-full h-full rounded-[15px] bg-gray-200 animate-pulse flex items-center justify-center">
+  <div className="w-6 h-6 rounded-full bg-gray-300" />
+</div>
               </div>
-            </div>
+              }
+          </div>
 
-            {/* Form */}
-            <form
-              className="mt-6 sm:mt-7 flex flex-col gap-3 sm:gap-4"
-              onSubmit={onSubmit}
-              noValidate
-            >
-              {/* Full name */}
-              <div className="flex flex-col gap-1">
-                <label
-                  className="text-[12px] sm:text-[13px] md:text-[14px] font-[500] text-[#444] opacity-60 mb-1"
-                  htmlFor="fullName"
-                >
-                  Full name
-                </label>
-                <input
-                  id="fullName"
-                  name="fullName"
-                  type="text"
-                  placeholder="Enter your full name"
-                  value={fullName}
-                  onChange={(e) => {
-                    setFullName(e.target.value);
-                    if (errors.fullName) clearFieldError("fullName");
-                  }}
-                  disabled={loading || saving}
-                  aria-invalid={!!errors.fullName}
-                  aria-describedby={errors.fullName ? "fullName-error" : undefined}
-                  className={[
-                    "w-full h-[44px] sm:h-[46px] bg-white rounded-[15px] indent-5 text-[14px] font-[500] text-[#2A2A2A] border outline-none transition",
-                    errors.fullName
-                      ? "border-red-400 focus:border-red-500"
-                      : "border-[#ECECEC] focus:border-[#0A5DBC]",
-                  ].join(" ")}
-                />
-                {errors.fullName ? (
-                  <p id="fullName-error" className="text-xs text-red-600 mt-1">
-                    {errors.fullName}
-                  </p>
-                ) : null}
-              </div>
-
-              {/* Handle / Username */}
-              <div className="flex flex-col gap-1">
-                <label
-                  className="text-[12px] sm:text-[13px] md:text-[14px] font-[500] text-[#444] opacity-60 mb-1"
-                  htmlFor="handle"
-                >
-                  Username
-                </label>
-                <input
-                  id="handle"
-                  name="handle"
-                  type="text"
-                  placeholder="Enter your username"
-                  value={handle}
-                  onChange={(e) => {
-                    setHandle(e.target.value);
-                    if (errors.handle) clearFieldError("handle");
-                  }}
-                  disabled={loading || saving}
-                  aria-invalid={!!errors.handle}
-                  aria-describedby={errors.handle ? "handle-error" : undefined}
-                  className={[
-                    "w-full h-[44px] sm:h-[46px] bg-white rounded-[15px] indent-5 text-[14px] font-[500] text-[#2A2A2A] border outline-none transition",
-                    errors.handle
-                      ? "border-red-400 focus:border-red-500"
-                      : "border-[#ECECEC] focus:border-[#0A5DBC]",
-                  ].join(" ")}
-                />
-                {errors.handle ? (
-                  <p id="handle-error" className="text-xs text-red-600 mt-1">
-                    {errors.handle}
-                  </p>
-                ) : null}
-              </div>
-
-              {/* Bio */}
-              <div className="flex flex-col gap-1">
-                <label
-                  className="text-[12px] sm:text-[13px] md:text-[14px] font-[500] text-[#444] opacity-60 mb-1"
-                  htmlFor="bio"
-                >
-                  Enter your bio
-                </label>
-                <textarea
-                  id="bio"
-                  name="bio"
-                  placeholder="Tell us something about you"
-                  value={bio}
-                  onChange={(e) => {
-                    setBio(e.target.value);
-                    if (errors.bio) clearFieldError("bio");
-                  }}
-                  disabled={loading || saving}
-                  aria-invalid={!!errors.bio}
-                  aria-describedby={errors.bio ? "bio-error" : undefined}
-                  className={[
-                    "w-full h-[96px] sm:h-[110px] py-[10px] bg-white rounded-[15px] indent-5 text-[14px] font-[500] text-[#2A2A2A] border outline-none transition resize-none",
-                    errors.bio
-                      ? "border-red-400 focus:border-red-500"
-                      : "border-[#ECECEC] focus:border-[#0A5DBC]",
-                  ].join(" ")}
-                />
-                {errors.bio ? (
-                  <p id="bio-error" className="text-xs text-red-600 mt-1">
-                    {errors.bio}
-                  </p>
-                ) : null}
-              </div>
-
-              {/* (Optional) Image URL errors */}
-              {errors.image ? (
-                <p id="image-error" className="text-xs text-red-600 -mt-2">
-                  {errors.image}
+          <form
+            className="mt-6 sm:mt-7 flex flex-col gap-3 sm:gap-4"
+            onSubmit={onSubmit}
+            noValidate
+          >
+            <div className="flex flex-col gap-1">
+              <label
+                className="text-[12px] sm:text-[13px] md:text-[14px] font-[500] text-[#444] opacity-60 mb-1"
+                htmlFor="fullName"
+              >
+                Full name
+              </label>
+              <input
+                id="fullName"
+                name="fullName"
+                type="text"
+                placeholder="Enter your full name"
+                value={fullName}
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (errors.fullName) clearFieldError("fullName");
+                }}
+                disabled={loading || saving}
+                aria-invalid={!!errors.fullName}
+                aria-describedby={errors.fullName ? "fullName-error" : undefined}
+                className={[
+                  "w-full h-[44px] sm:h-[46px] bg-white rounded-[15px] indent-5 text-[14px] font-[500] text-[#2A2A2A] border outline-none transition",
+                  errors.fullName
+                    ? "border-red-400 focus:border-red-500"
+                    : "border-[#ECECEC] focus:border-[#0A5DBC]",
+                ].join(" ")}
+              />
+              {errors.fullName ? (
+                <p id="fullName-error" className="text-xs text-red-600 mt-1">
+                  {errors.fullName}
                 </p>
               ) : null}
+            </div>
 
-              {/* CTA */}
-              <button
-                className="mt-1 w-full h-[44px] sm:h-[46px] bg-[#0A5DBC] rounded-[15px] flex items-center justify-center disabled:opacity-60"
-                type="submit"
-                disabled={loading || saving}
+            <div className="flex flex-col gap-1">
+              <label
+                className="text-[12px] sm:text-[13px] md:text-[14px] font-[500] text-[#444] opacity-60 mb-1"
+                htmlFor="handle"
               >
-                <span className="text-white font-[500] text-[15px] sm:text-[16px] leading-[24px]">
-                  {saving ? "Saving..." : "Next"}
-                </span>
-              </button>
-            </form>
-          </div>
+                Username
+              </label>
+              <input
+                id="handle"
+                name="handle"
+                type="text"
+                placeholder="Enter your username"
+                value={handle}
+                onChange={(e) => {
+                  setHandle(e.target.value);
+                  if (errors.handle) clearFieldError("handle");
+                }}
+                disabled={loading || saving}
+                aria-invalid={!!errors.handle}
+                aria-describedby={errors.handle ? "handle-error" : undefined}
+                className={[
+                  "w-full h-[44px] sm:h-[46px] bg-white rounded-[15px] indent-5 text-[14px] font-[500] text-[#2A2A2A] border outline-none transition",
+                  errors.handle
+                    ? "border-red-400 focus:border-red-500"
+                    : "border-[#ECECEC] focus:border-[#0A5DBC]",
+                ].join(" ")}
+              />
+              {errors.handle ? (
+                <p id="handle-error" className="text-xs text-red-600 mt-1">
+                  {errors.handle}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label
+                className="text-[12px] sm:text-[13px] md:text-[14px] font-[500] text-[#444] opacity-60 mb-1"
+                htmlFor="bio"
+              >
+                Enter your bio
+              </label>
+              <textarea
+                id="bio"
+                name="bio"
+                placeholder="Tell us something about you"
+                value={bio}
+                onChange={(e) => {
+                  setBio(e.target.value);
+                  if (errors.bio) clearFieldError("bio");
+                }}
+                disabled={loading || saving}
+                aria-invalid={!!errors.bio}
+                aria-describedby={errors.bio ? "bio-error" : undefined}
+                className={[
+                  "w-full h-[96px] sm:h-[110px] py-[10px] bg-white rounded-[15px] indent-5 text-[14px] font-[500] text-[#2A2A2A] border outline-none transition resize-none",
+                  errors.bio
+                    ? "border-red-400 focus:border-red-500"
+                    : "border-[#ECECEC] focus:border-[#0A5DBC]",
+                ].join(" ")}
+              />
+              {errors.bio ? (
+                <p id="bio-error" className="text-xs text-red-600 mt-1">
+                  {errors.bio}
+                </p>
+              ) : null}
+            </div>
+
+            {errors.image ? (
+              <p id="image-error" className="text-xs text-red-600 -mt-2">
+                {errors.image}
+              </p>
+            ) : null}
+
+            <button
+              className="mt-1 w-full h-[44px] sm:h-[46px] bg-[#0A5DBC] rounded-[15px] flex items-center justify-center disabled:opacity-60"
+              type="submit"
+              disabled={loading || saving}
+            >
+              <span className="text-white font-[500] text-[15px] sm:text-[16px] leading-[24px]">
+                {saving ? "Saving..." : "Next"}
+              </span>
+            </button>
+          </form>
         </div>
       </div>
     </div>
