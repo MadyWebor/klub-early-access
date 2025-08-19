@@ -4,11 +4,11 @@ import { prisma } from "@/lib/db";
 import WaitList from "./UI";
 
 interface PageProps {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }
 
 export default async function PublicWaitlistPage({ params }: PageProps) {
-  const key = params.slug?.trim();
+  const key = (await params).slug?.trim();
   if (!key) notFound(); // no slug in URL -> 404
 
   const w = await prisma.waitlist.findFirst({
