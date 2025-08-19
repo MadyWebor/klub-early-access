@@ -1,6 +1,6 @@
-import { NextResponse, NextRequest } from "next/server";
+// src/app/api/public/waitlists/[idOrSlug]/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-
 
 function isProbableId(s: string) {
   return /^[a-z0-9]+$/i.test(s) && s.length >= 6;
@@ -16,14 +16,11 @@ function safeHandle(url?: string | null) {
   }
 }
 
-
 export async function GET(
- _req: NextRequest,
- /* eslint-disable @typescript-eslint/ban-ts-comment */
-  ctx: { params: Record<string, string> }
+  _req: NextRequest,
+  { params }: { params: { idOrSlug: string } }
 ) {
-  /* eslint-disable @typescript-eslint/ban-ts-comment */
-  const { idOrSlug } = ctx.params as { idOrSlug: string };
+  const { idOrSlug } = params;
 
   const waitlist = await prisma.waitlist.findFirst({
     where: isProbableId(idOrSlug)
@@ -50,8 +47,12 @@ export async function GET(
       benefits: { orderBy: { displayOrder: "asc" }, select: { text: true } },
       socials: {
         select: {
-          websiteUrl: true, youtubeUrl: true, instagramUrl: true,
-          linkedinUrl: true, facebookUrl: true, xUrl: true,
+          websiteUrl: true,
+          youtubeUrl: true,
+          instagramUrl: true,
+          linkedinUrl: true,
+          facebookUrl: true,
+          xUrl: true,
         },
       },
       faqs: { orderBy: { displayOrder: "asc" }, select: { question: true, answer: true } },
@@ -59,7 +60,10 @@ export async function GET(
   });
 
   if (!waitlist) {
-    return NextResponse.json({ ok: false, message: "Waitlist not found or not published." }, { status: 404 });
+    return NextResponse.json(
+      { ok: false, message: "Waitlist not found or not published." },
+      { status: 404 }
+    );
   }
 
   const ownerName =
@@ -69,21 +73,53 @@ export async function GET(
     waitlist.owner?.handle ||
     "Creator";
 
-  const slides = waitlist.media.map((m) => ({
-    type: m.kind === "VIDEO" ? ("video" as const) : ("image" as const),
-    src: m.url,
-  }));
-  if (!slides.length && waitlist.thumbnailUrl) {
-    slides.push({ type: "image" as const, src: waitlist.thumbnailUrl });
-  }
+  const slides =
+    waitlist.media.length > 0
+      ? waitlist.media.map((m) => ({
+          type: m.kind === "VIDEO" ? "video" : "image",
+          src: m.url,
+        }))
+      : waitlist.thumbnailUrl
+      ? [{ type: "image" as const, src: waitlist.thumbnailUrl }]
+      : [];
 
   const socials = [
-    waitlist.socials?.instagramUrl && { label: "Instagram", handle: safeHandle(waitlist.socials.instagramUrl), icon: "/insta.png", href: waitlist.socials.instagramUrl! },
-    waitlist.socials?.facebookUrl  && { label: "Facebook",  handle: safeHandle(waitlist.socials.facebookUrl),  icon: "/facebook.png", href: waitlist.socials.facebookUrl! },
-    waitlist.socials?.linkedinUrl  && { label: "LinkedIn",  handle: safeHandle(waitlist.socials.linkedinUrl),  icon: "/linkedin.png", href: waitlist.socials.linkedinUrl! },
-    waitlist.socials?.xUrl         && { label: "X",         handle: safeHandle(waitlist.socials.xUrl),         icon: "/x.png",       href: waitlist.socials.xUrl! },
-    waitlist.socials?.youtubeUrl   && { label: "YouTube",   handle: safeHandle(waitlist.socials.youtubeUrl),   icon: "/youtube.png", href: waitlist.socials.youtubeUrl! },
-    waitlist.socials?.websiteUrl   && { label: "Website",   handle: safeHandle(waitlist.socials.websiteUrl),   icon: "/link.png",    href: waitlist.socials.websiteUrl! },
+    waitlist.socials?.instagramUrl && {
+      label: "Instagram",
+      handle: safeHandle(waitlist.socials.instagramUrl),
+      icon: "/insta.png",
+      href: waitlist.socials.instagramUrl!,
+    },
+    waitlist.socials?.facebookUrl && {
+      label: "Facebook",
+      handle: safeHandle(waitlist.socials.facebookUrl),
+      icon: "/facebook.png",
+      href: waitlist.socials.facebookUrl!,
+    },
+    waitlist.socials?.linkedinUrl && {
+      label: "LinkedIn",
+      handle: safeHandle(waitlist.socials.linkedinUrl),
+      icon: "/linkedin.png",
+      href: waitlist.socials.linkedinUrl!,
+    },
+    waitlist.socials?.xUrl && {
+      label: "X",
+      handle: safeHandle(waitlist.socials.xUrl),
+      icon: "/x.png",
+      href: waitlist.socials.xUrl!,
+    },
+    waitlist.socials?.youtubeUrl && {
+      label: "YouTube",
+      handle: safeHandle(waitlist.socials.youtubeUrl),
+      icon: "/youtube.png",
+      href: waitlist.socials.youtubeUrl!,
+    },
+    waitlist.socials?.websiteUrl && {
+      label: "Website",
+      handle: safeHandle(waitlist.socials.websiteUrl),
+      icon: "/link.png",
+      href: waitlist.socials.websiteUrl!,
+    },
   ].filter(Boolean);
 
   return NextResponse.json({
@@ -99,7 +135,9 @@ export async function GET(
     priceAmount: waitlist.priceAmount,
     buttonLabel:
       waitlist.buttonLabel ||
-      (waitlist.priceAmount != null ? `Join for ₹${(waitlist.priceAmount / 100).toFixed(0)}` : "Join"),
+      (waitlist.priceAmount != null
+        ? `Join for ₹${(waitlist.priceAmount / 100).toFixed(0)}`
+        : "Join"),
     launchDate: waitlist.launchDate,
     publishedAt: waitlist.publishedAt,
     slides,
