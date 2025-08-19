@@ -15,6 +15,7 @@ function safeHandle(url?: string | null) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export async function GET(
   req: Request,
   { params }: { params: { idOrSlug: string } }
