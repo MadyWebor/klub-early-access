@@ -92,8 +92,12 @@ const Dashboard: React.FC<Props> = ({ initialData }) => {
       // If your API needs waitlistId, add ?waitlistId=current.id
       await fetch(`/api/subscribers/${id}`, { method: "DELETE", headers: { 'Content-Type': 'application/json' } });
       setSubs(s => s.filter(x => x.id !== id));
-    } catch (e: any) {
-      alert(e?.message || "Failed to delete");
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        alert(e.message);
+      } else {
+        alert("Failed to delete");
+      }
     }
   };
 

@@ -12,13 +12,15 @@ type SocialLinks = {
   website: string; youtube: string; instagram: string; linkedin: string; facebook: string; x: string;
 };
 
-type WaitlistContentValue = {
-  media: string[];
-  bannerVideoUrl: string | null;
-  benefits: Benefit[];
-  socials: SocialLinks;
-  faqs: FAQ[];
-};
+interface WaitlistAPIResponse {
+  waitlist: {
+    media?: string[];
+    bannerVideoUrl?: string | null;
+    benefits?: string[];
+    socials?: Partial<SocialLinks>;
+    faqs?: FAQ[];
+  };
+}
 
 // ──────────────────────────────────────────────────────────────
 // Helpers
@@ -120,7 +122,7 @@ export default function ContentFullSection() {
           } as SocialLinks);
           setFaqs((c.content.faqs ?? []).length ? (c.content.faqs ?? []) : [{ question: '', answer: '' }]);
         } catch {
-          const got = await jsonFetch<any>(`/api/waitlists/${mine.waitlist.id}`, { method: 'GET' });
+          const got = await jsonFetch<WaitlistAPIResponse>(`/api/waitlists/${mine.waitlist.id}`, { method: 'GET' });
           if (!alive) return;
           const w = got?.waitlist ?? {};
           setMedia(w.media ?? []);
