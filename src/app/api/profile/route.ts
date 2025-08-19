@@ -1,12 +1,13 @@
 // src/app/api/profile/route.ts
 export const runtime = "nodejs";
+// Optional, avoids any caching of this handler during builds:
+// export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-// import type { Prisma } from "@prisma/client";
-import { Prisma } from "@prisma/client"; // <-- not "import type"
+import { Prisma } from "@prisma/client";
 import {
   ProfileCreateSchema,
   ProfileUpdateSchema,
@@ -19,13 +20,28 @@ function bad(status: number, message: string, field?: string) {
   return NextResponse.json({ ok: false, error: { message, field } }, { status });
 }
 
+function setOnboardingCookie(res: NextResponse, status: "profile" | "course" | "content" | "price" | "completed") {
+  res.cookies.set("onboardingStatus", status, {
+    path: "/",
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    // NOT httpOnly → middleware (edge) must be able to read it
+  });
+  return res;
+}
+
 // ------- GET /api/profile ----------------------------------------------------
 export async function GET() {
   const session = await getServerSession(authOptions);
   const sUser = session?.user;
   if (!sUser) return bad(401, "Not authenticated");
 
-  const where = sUser.id ? { id: sUser.id } : sUser.email ? { email: sUser.email } : null;
+  const where = sUser.id
+    ? { id: sUser.id }
+    : sUser.email
+    ? { email: sUser.email }
+    : null;
+
   if (!where) return bad(400, "No user identity in session");
 
   const user = await prisma.user.findFirst({
@@ -45,7 +61,10 @@ export async function GET() {
   });
 
   if (!user) return bad(404, "User not found");
-  return NextResponse.json({ ok: true, profile: user });
+
+  // Keep middleware cookie fresh on load
+  const res = NextResponse.json({ ok: true, profile: user });
+  return setOnboardingCookie(res, user.onboardingStatus);
 }
 
 // ------- POST /api/profile ---------------------------------------------------
@@ -85,7 +104,7 @@ export async function POST(req: Request) {
           handle,
           bio: bio?.length ? bio : null,
           image: image ?? undefined,
-          onboardingStatus: "course",
+          onboardingStatus: "course", // advance on create
         },
         select: {
           id: true,
@@ -109,16 +128,15 @@ export async function POST(req: Request) {
       return user;
     });
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       ok: true,
       profile: updated,
       next: "/wait-list/setup/course",
     });
+    // Sync cookie to 'course' so middleware lets user into the next step
+    return setOnboardingCookie(res, "course");
   } catch (e: unknown) {
-    if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2002"
-    ) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       const target = e.meta?.target;
       const isHandle =
         (typeof target === "string" && target === "handle") ||
@@ -166,12 +184,13 @@ export async function PATCH(req: Request) {
   }
 
   try {
-    const updated = await prisma.$transaction(async (tx) => {
+    const { updated, newStatus } = await prisma.$transaction(async (tx) => {
       const current = await tx.user.findUnique({
         where: { id: userId },
         select: { onboardingStatus: true },
       });
 
+      const shouldAdvance = current?.onboardingStatus === "profile";
       const user = await tx.user.update({
         where: { id: userId },
         data: {
@@ -179,7 +198,7 @@ export async function PATCH(req: Request) {
           ...("handle" in data ? { handle: data.handle } : {}),
           ...("bio" in data ? { bio: data.bio && data.bio.length ? data.bio : null } : {}),
           ...("image" in data ? { image: data.image } : {}),
-          ...(current?.onboardingStatus === "profile" ? { onboardingStatus: "course" } : {}),
+          ...(shouldAdvance ? { onboardingStatus: "course" } : {}),
         },
         select: {
           id: true,
@@ -194,22 +213,23 @@ export async function PATCH(req: Request) {
         },
       });
 
-      if (current?.onboardingStatus === "profile") {
+      if (shouldAdvance) {
         await tx.onboardingProgress.upsert({
           where: { userId },
           create: { userId, profileDone: true },
           update: { profileDone: true },
         });
       }
-      return user;
+
+      return { updated: user, newStatus: shouldAdvance ? "course" : current!.onboardingStatus };
     });
 
-    return NextResponse.json({ ok: true, profile: updated });
+    const res = NextResponse.json({ ok: true, profile: updated });
+    // Only update the cookie if we advanced from 'profile' → 'course'
+    if (newStatus === "course") setOnboardingCookie(res, "course");
+    return res;
   } catch (e: unknown) {
-    if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2002"
-    ) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       const target = e.meta?.target;
       const isHandle =
         (typeof target === "string" && target === "handle") ||

@@ -4,12 +4,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { signIn } from 'next-auth/react';
 
-export default function Signin({ title, next }: { title: string; next?: string }) {
+export default function Signin() {
   return (
-    <div className="h-screen w-full bg-white flex flex-col border items-center justify-center overflow-hidden">
-      <div className="w-[90%] max-w-[1200px] h-[70%] px-3 sm:px-6 lg:px-8 py-6">
-        <div className="w-full flex justify-end">
-          <div className="w-fit h-[34px] rounded-[10px] border border-[#D4E4F3] bg-[#E6EFF8] flex px-[10px] py-[5px] text-[#0A5DBC] gap-[6px]">
+    <div className='flex flex-col justify-center items-center w-screen h-screen'>
+      <div className='flex-col flex w-[75%] sm:w-[70%] md:w-[80%] lg:w-[45%] h-[55%] sm:h-[70%] gap-4'>
+        {/* Early Access Badge */}
+        <div className='w-full flex justify-end'>
+          <div className="w-fit h-[28px] rounded-[10px] border border-[#D4E4F3] bg-[#E6EFF8] flex px-[10px] py-[5px] text-[#0A5DBC] gap-[6px]">
             <div className="flex items-center justify-center">
               <div className="w-[12px] h-[12px] rounded-full bg-[#0A5DBC]" />
             </div>
@@ -18,10 +19,14 @@ export default function Signin({ title, next }: { title: string; next?: string }
             </div>
           </div>
         </div>
+        {/* Early Access Badge */}
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-4 md:gap-6 h-[480px] sm:h-full">
-          <div className="hidden md:block md:col-span-2">
-            <div className="relative rounded-[20px] overflow-hidden bg-[url('/auth_image.jpg')] bg-cover bg-center h-full">
+        {/* Content */}
+        <div className='w-full h-full flex gap-4'>
+
+          {/* Left Panel */}
+          <div className='hidden md:flex flex-col h-full w-[40%]'>
+             <div className="relative rounded-[20px] overflow-hidden bg-[url('/auth_image.jpg')] bg-cover bg-center h-full">
               <div className="absolute inset-0 p-6 md:p-8 lg:p-10 flex flex-col text-[#2A2A2A]">
                 <Image src="/klub.png" alt="klub" width={90} height={48} className="mt-[50px]" />
                 <span className="text-white border-t border-white pt-3 mt-4 w-full max-w-[260px]">
@@ -37,13 +42,15 @@ export default function Signin({ title, next }: { title: string; next?: string }
               </div>
             </div>
           </div>
+          {/* Left Panel */}
 
-          <div className="md:col-span-3 h-[480px] sm:h-full">
-            <div className="rounded-[20px] bg-[url('/papyrus.png')] bg-cover bg-center h-full">
+          {/* Right Panel */}
+          <div className='flex flex-col h-full w-full md:w-[60%]'>
+            <div className="rounded-[20px] bg-[url('/papyrus.png')] bg-contain h-full">
               <div className="flex flex-col h-full p-5 sm:p-6 md:p-8">
                 <div>
                   <span className="font-semibold text-[20px] sm:text-[22px] md:text-[26px] leading-tight">
-                    <span className="text-[#0A5DBC]">{title} </span>to your account
+                    <span className="text-[#0A5DBC]">Sign in </span>to your account
                   </span>
                   <p className="text-[14px] sm:text-[15px] md:text-[16px] mt-2 max-w-[48ch] text-[#787878] font-medium">
                     Welcome!
@@ -52,7 +59,7 @@ export default function Signin({ title, next }: { title: string; next?: string }
 
                 <button
                   type="button"
-                  onClick={() => signIn("google", { callbackUrl: next ?? "/dashboard" })}
+                  onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
                   className="mt-6 h-[48px] sm:h-[50px] w-full bg-white border border-[#ECECEC] rounded-[15px] flex items-center justify-center gap-3 hover:opacity-85 transition"
                 >
                   <Image src="/google.png" alt="google" width={24} height={24} />
@@ -87,8 +94,10 @@ export default function Signin({ title, next }: { title: string; next?: string }
               </div>
             </div>
           </div>
-          {/* /Right panel */}
+          {/* Right Panel */}
+
         </div>
+        {/* Content */}
       </div>
     </div>
   );

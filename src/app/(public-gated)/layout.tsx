@@ -1,8 +1,8 @@
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/db";
 import { redirect } from "next/navigation";
-import { nextOnboardingPath } from "@/lib/onboarding";
 import { safeGetSession } from "@/lib/safeSession";
 
 export default async function PublicGatedLayout({ children }: { children: React.ReactNode }) {
@@ -13,7 +13,15 @@ export default async function PublicGatedLayout({ children }: { children: React.
     where: { id: session.user.id },
     select: { onboardingStatus: true },
   });
-  if (user) redirect(nextOnboardingPath(user?.onboardingStatus));
+  if (!user) return <>{children}</>;
 
-  return <>{children}</>;
+  const urls = {
+    profile: "/profile",
+    course: "/wait-list/setup/course",
+    content: "/wait-list/setup/content",
+    price: "/wait-list/setup/price",
+    completed: "/dashboard",
+  };
+
+  redirect(urls[user.onboardingStatus]);
 }

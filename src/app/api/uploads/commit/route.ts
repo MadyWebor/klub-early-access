@@ -1,45 +1,39 @@
+// src/app/api/uploads/commit/route.ts
 export const runtime = "nodejs";
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth"; // make sure this exports your NextAuth options
+import { authOptions } from "@/lib/auth";
 import type { MediaKind as PrismaMediaKind } from "@prisma/client";
-import { toMessage } from "@/lib/http"; 
 
-// ---- BODY SCHEMA (discriminated by target/kind) ----
 const Base = z.object({
-  key: z.string(),
+  key: z.string().min(1),
   publicUrl: z.string().url(),
 });
 
 const UserImageBody = Base.extend({
   target: z.literal("user.image"),
-  kind: z.literal("IMAGE"), // only IMAGE is valid for profile avatar
+  kind: z.literal("IMAGE"),
 });
 
 const WaitlistMediaBody = Base.extend({
   target: z.literal("waitlist.media"),
-  kind: z.enum(["IMAGE", "VIDEO"]), // FILE is NOT allowed in WaitlistMedia
-  waitlistId: z.string(), // required when target is waitlist.media
+  kind: z.enum(["IMAGE", "VIDEO"]),
+  waitlistId: z.string(),
 });
 
 const Body = z.union([UserImageBody, WaitlistMediaBody]);
 
 export async function POST(req: NextRequest) {
-  // Session
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { ok: false, error: { message: "Unauthorized" } },
-      { status: 401 }
-    );
+    return NextResponse.json({ ok: false, error: { message: "Unauthorized" } }, { status: 401 });
   }
 
   try {
-    const json = await req.json();
-    const parsed = Body.safeParse(json);
+    const parsed = Body.safeParse(await req.json());
     if (!parsed.success) {
       return NextResponse.json(
         { ok: false, error: { message: parsed.error.issues[0]?.message ?? "Invalid payload" } },
@@ -47,10 +41,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Narrowed type thanks to zod union above
     const data = parsed.data;
 
-    // --- Update user image ---
     if (data.target === "user.image") {
       const user = await prisma.user.update({
         where: { id: session.user.id },
@@ -60,43 +52,40 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, updated: { user } });
     }
 
-    // --- Create waitlist media (IMAGE | VIDEO only) ---
     if (data.target === "waitlist.media") {
-      // Ownership guard
       const wl = await prisma.waitlist.findUnique({
         where: { id: data.waitlistId },
         select: { ownerId: true },
       });
       if (!wl || wl.ownerId !== session.user.id) {
-        return NextResponse.json(
-          { ok: false, error: { message: "Not allowed" } },
-          { status: 403 }
-        );
+        return NextResponse.json({ ok: false, error: { message: "Not allowed" } }, { status: 403 });
       }
 
-      // TS-safe narrowing to Prisma enum (no "FILE" possible here)
-      const prismaKind: PrismaMediaKind = data.kind; // "IMAGE" | "VIDEO"
+      // simple displayOrder: max+1
+      const last = await prisma.waitlistMedia.findFirst({
+        where: { waitlistId: data.waitlistId },
+        orderBy: { displayOrder: "desc" },
+        select: { displayOrder: true },
+      });
+      const displayOrder = (last?.displayOrder ?? 0) + 1;
 
+      const prismaKind: PrismaMediaKind = data.kind; // "IMAGE" | "VIDEO"
       const media = await prisma.waitlistMedia.create({
         data: {
           waitlistId: data.waitlistId,
           kind: prismaKind,
           url: data.publicUrl,
+          displayOrder,
         },
-        select: { id: true, kind: true, url: true, waitlistId: true },
+        select: { id: true, kind: true, url: true, waitlistId: true, displayOrder: true },
       });
 
       return NextResponse.json({ ok: true, created: { media } });
     }
 
-    // Fallback (should never hit because union covers cases)
-    return NextResponse.json(
-      { ok: false, error: { message: "Invalid target" } },
-      { status: 400 }
-    );
+    return NextResponse.json({ ok: false, error: { message: "Invalid target" } }, { status: 400 });
   } catch (e: unknown) {
-  return NextResponse.json(
-    { ok: false, error: { message: toMessage(e, "Commit failed") } },
-    { status: 500 }
-  );
-}}
+    const message = e instanceof Error ? e.message : "Commit failed";
+    return NextResponse.json({ ok: false, error: { message } }, { status: 500 });
+  }
+}

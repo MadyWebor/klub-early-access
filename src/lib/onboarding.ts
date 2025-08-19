@@ -1,13 +1,16 @@
-// lib/onboarding.ts
-export type OnboardingStatus = "profile" | "course" | "content" | "price" | "completed";
+// src/lib/onboardingCookie.ts
+import { NextResponse } from "next/server";
+import type { OnboardingStatus } from "@/middleware";
 
-export function nextOnboardingPath(status?: OnboardingStatus | null) {
-  if (!status) return "/profile"; // ← start here if missing
-  switch (status) {
-    case "profile":  return "/profile";
-    case "course":   return "/wait-list/setup/course";
-    case "content":  return "/wait-list/setup/content";
-    case "price":    return "/wait-list/setup/price";
-    case "completed": return "/dashboard";
-  }
+export function setOnboardingCookie(
+  res: NextResponse,
+  status: OnboardingStatus
+) {
+  res.cookies.set("onboardingStatus", status, {
+    path: "/",
+    httpOnly: false,    // readable by client; still sent to middleware on requests
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+  });
+  return res;
 }
