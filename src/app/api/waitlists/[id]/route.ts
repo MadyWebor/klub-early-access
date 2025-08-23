@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client"; // needed for PrismaPromise
 
 // ──────────────────────────────────────────────────────────────
 // Validation for PATCH
@@ -98,13 +99,13 @@ export async function GET(_req: NextRequest, context: unknown) {
     benefits: benefitRows.map((b) => b.text),
     socials: socialsRow
       ? {
-          website: socialsRow.websiteUrl ?? "",
-          youtube: socialsRow.youtubeUrl ?? "",
-          instagram: socialsRow.instagramUrl ?? "",
-          linkedin: socialsRow.linkedinUrl ?? "",
-          facebook: socialsRow.facebookUrl ?? "",
-          x: socialsRow.xUrl ?? "",
-        }
+        website: socialsRow.websiteUrl ?? "",
+        youtube: socialsRow.youtubeUrl ?? "",
+        instagram: socialsRow.instagramUrl ?? "",
+        linkedin: socialsRow.linkedinUrl ?? "",
+        facebook: socialsRow.facebookUrl ?? "",
+        x: socialsRow.xUrl ?? "",
+      }
       : undefined,
     faqs: faqRows.map((f) => ({ question: f.question, answer: f.answer })),
   };
@@ -151,7 +152,7 @@ export async function PATCH(req: NextRequest, context: unknown) {
 
   const { media, bannerVideoUrl, benefits, socials, faqs } = parsed.data;
 
-  const tx: any[] = [
+  const tx: Array<Prisma.PrismaPromise<unknown>> = [
     prisma.waitlist.update({ where: { id }, data: { bannerVideoUrl } }),
     prisma.waitlistMedia.deleteMany({ where: { waitlistId: id } }),
     prisma.waitlistMedia.createMany({
@@ -198,7 +199,7 @@ export async function PATCH(req: NextRequest, context: unknown) {
           answer: f.answer,
           displayOrder: i,
         })),
-      }),
+      })
     );
   }
 
@@ -207,7 +208,7 @@ export async function PATCH(req: NextRequest, context: unknown) {
       where: { userId: session.user.id },
       update: { contentDone: true },
       create: { userId: session.user.id, contentDone: true },
-    }),
+    })
   );
 
   const user = await prisma.user.findUnique({
@@ -219,7 +220,7 @@ export async function PATCH(req: NextRequest, context: unknown) {
       prisma.user.update({
         where: { id: session.user.id },
         data: { onboardingStatus: "price" },
-      }),
+      })
     );
   }
 
