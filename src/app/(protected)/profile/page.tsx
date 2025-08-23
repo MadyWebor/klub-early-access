@@ -30,5 +30,5 @@ export default async function ProfilePage() {
   }
 
   // No onboarding redirect here → user can always edit profile
-  return <Profile />;
+  return <Profile status={userStatus}/>;
 }

@@ -60,7 +60,7 @@ export default function Signin() {
                 <button
                   type="button"
                   onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-                  className="mt-6 h-[48px] sm:h-[50px] w-full bg-white border border-[#ECECEC] rounded-[15px] flex items-center justify-center gap-3 hover:opacity-85 transition"
+                  className="cursor-pointer mt-6 h-[48px] sm:h-[50px] w-full bg-white border border-[#ECECEC] rounded-[15px] flex items-center justify-center gap-3 hover:opacity-85 transition"
                 >
                   <Image src="/google.png" alt="google" width={24} height={24} />
                   <span className="font-semibold text-[15px] sm:text-[16px] text-[#2A2A2A]">

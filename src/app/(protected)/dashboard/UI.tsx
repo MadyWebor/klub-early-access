@@ -193,15 +193,10 @@ const Dashboard: React.FC<Props> = ({ initialData }) => {
                 </div>
 
                 {/* Actions */}
-                <div className="justify-between gap-3 sm:gap-0 mt-4 sm:mt-0 hidden sm:flex">
-                  <div className="flex flex-col">
-                    <span className="flex gap-2 text-[12px] sm:text-[14px] font-[500] break-all text-left">
-                      {current.publicUrl}
-                      <GoCopy onClick={() => copyToClipboard(current.publicUrl)} className="cursor-pointer" />
-                    </span>
-                  </div>
-                  <div className="flex flex-col justify-center items-center">
-                    <div className="flex gap-2">
+                <div className="justify-between gap-3 sm:gap-0 mt-4 sm:mt-0 flex">
+                 
+                  <div className="w-full flex flex-col">
+                    <div className="flex gap-2 w-full justify-end">
                       <button
                         onClick={() => router.push('/wait-list/setup/course')}
                         className="border border-[#ECECEC] py-[8px] px-[12px] sm:py-[10px] sm:px-[15px] rounded-[15px] font-[500] text-[12px] sm:text-[14px]"
@@ -215,35 +210,19 @@ const Dashboard: React.FC<Props> = ({ initialData }) => {
                         Preview
                       </button>
                     </div>
+
                   </div>
                 </div>
+                
               </div>
+              
             </div>
-
+                    <span className="flex gap-2 w-full text-[12px] sm:text-[14px] font-[500] break-all mt-2">
+                      {current.publicUrl}
+                      <GoCopy onClick={() => copyToClipboard(current.publicUrl)} className="cursor-pointer" />
+                    </span>
             {/* mobile footer */}
-            <div className="flex justify-between gap-3 sm:gap-0 mt-2 sm:hidden">
-              <div className="flex flex-col justify-center items-center">
-                <span className="text-[12px] flex gap-2 sm:text-[14px] font-[500] break-all text-center sm:text-left">
-                  {current.publicUrl} <GoCopy onClick={() => copyToClipboard(current.publicUrl)} className="cursor-pointer" />
-                </span>
-              </div>
-              <div className="flex flex-col justify-center items-center">
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => router.push('/wait-list/setup/course')}
-                    className="border border-[#ECECEC] py-[8px] px-[12px] sm:py-[10px] sm:px-[15px] rounded-[15px] font-[500] text-[12px] sm:text-[14px]"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => router.push(current.publicUrl.replace(window.location.origin, ''))}
-                    className="border border-[#0A5DBC] py-[8px] px-[12px] sm:py-[10px] sm:px-[15px] bg-[#0A5DBC] rounded-[15px] font-[500] text-[12px] sm:text-[14px] text-[#fff]"
-                  >
-                    Preview
-                  </button>
-                </div>
-              </div>
-            </div>
+           
           </div>
 
           {/* Subscribers table */}

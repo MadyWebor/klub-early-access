@@ -1,39 +1,42 @@
-// src/app/api/waitlists/[id]/route.ts
 export const runtime = "nodejs";
 
-import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { prisma } from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
 
-const slugRegex = /^[a-z0-9-]{3,}$/;
+// ──────────────────────────────────────────────────────────────
+// Validation for PATCH
+// ──────────────────────────────────────────────────────────────
+const urlField = z
+  .string()
+  .trim()
+  .refine((v) => /^https?:\/\//i.test(v), "Must be a valid URL (include http(s)://)")
+  .url();
 
-const PatchSchema = z.object({
-  title: z.string().min(1, "Course title is required."),
-  bioHtml: z.string().min(1, "Course bio is required."),
-  aboutHtml: z.string().min(1, "About course is required."),
-  slug: z
-    .string()
-    .min(3)
-    .regex(slugRegex, "Use 3+ chars: lowercase letters, numbers, and hyphens."),
-  thumbnailUrl: z.string().url().optional().or(z.literal("")).nullable(),
-  trustedBy: z.number().int().optional().nullable(), // ✅ added
+const ContentSchema = z.object({
+  media: z.array(z.string().url()).min(1, "At least one media file is required."),
+  bannerVideoUrl: z.string().url("Banner video is required."),
+  benefits: z.array(z.string().min(1)).min(1, "At least one benefit is required."),
+  socials: z.object({
+    website: urlField,
+    youtube: urlField,
+    instagram: urlField,
+    linkedin: urlField,
+    facebook: urlField,
+    x: urlField,
+  }),
+  faqs: z
+    .array(z.object({ question: z.string().min(1), answer: z.string().min(1) }))
+    .optional(),
 });
 
-// Helper: works whether Next gives params sync or as a Promise
-type Ctx =
-  | { params: { id: string } }
-  | { params: Promise<{ id: string }> };
-
-async function getId(ctx: Ctx): Promise<string> {
-  const p = "then" in ctx.params ? await (ctx.params as Promise<{ id: string }>) : (ctx.params as { id: string });
-  return p.id;
-}
-
+// ──────────────────────────────────────────────────────────────
+// GET  /api/waitlists/[id]/content
+// ──────────────────────────────────────────────────────────────
 export async function GET(_req: NextRequest, context: unknown) {
-  const { id } = (context as { params: { id: string } }).params;
-
+  const { id } = await (context as { params: { id: string } }).params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: { message: "Unauthorized" } }, { status: 401 });
@@ -49,118 +52,178 @@ export async function GET(_req: NextRequest, context: unknown) {
       about: true,
       slug: true,
       thumbnailUrl: true,
-      trustedBy: true, // ✅ added
+      trustedBy: true,
       createdAt: true,
       updatedAt: true,
+      bannerVideoUrl: true,
     },
   });
 
   if (!wl || wl.ownerId !== session.user.id) {
     return NextResponse.json({ ok: false, error: { message: "Not found" } }, { status: 404 });
   }
+
+  const [mediaRows, benefitRows, socialsRow, faqRows] = await Promise.all([
+    prisma.waitlistMedia.findMany({
+      where: { waitlistId: id },
+      orderBy: { displayOrder: "asc" },
+      select: { url: true },
+    }),
+    prisma.waitlistBenefit.findMany({
+      where: { waitlistId: id },
+      orderBy: { displayOrder: "asc" },
+      select: { text: true },
+    }),
+    prisma.waitlistSocial.findUnique({
+      where: { waitlistId: id },
+      select: {
+        websiteUrl: true,
+        youtubeUrl: true,
+        instagramUrl: true,
+        linkedinUrl: true,
+        facebookUrl: true,
+        xUrl: true,
+      },
+    }),
+    prisma.waitlistFaq.findMany({
+      where: { waitlistId: id },
+      orderBy: { displayOrder: "asc" },
+      select: { question: true, answer: true },
+    }),
+  ]);
+
+  const content = {
+    media: mediaRows.map((m) => m.url),
+    bannerVideoUrl: wl.bannerVideoUrl ?? null,
+    benefits: benefitRows.map((b) => b.text),
+    socials: socialsRow
+      ? {
+          website: socialsRow.websiteUrl ?? "",
+          youtube: socialsRow.youtubeUrl ?? "",
+          instagram: socialsRow.instagramUrl ?? "",
+          linkedin: socialsRow.linkedinUrl ?? "",
+          facebook: socialsRow.facebookUrl ?? "",
+          x: socialsRow.xUrl ?? "",
+        }
+      : undefined,
+    faqs: faqRows.map((f) => ({ question: f.question, answer: f.answer })),
+  };
 
   return NextResponse.json({
     ok: true,
     waitlist: {
       id: wl.id,
+      slug: wl.slug,
       title: wl.title,
-      bioHtml: wl.courseBio ?? "",
-      aboutHtml: wl.about ?? "",
-      slug: wl.slug ?? "",
-      thumbnailUrl: wl.thumbnailUrl ?? "",
-      trustedBy: wl.trustedBy ?? null, // ✅ added
+      courseBio: wl.courseBio,
+      about: wl.about,
+      thumbnailUrl: wl.thumbnailUrl,
+      trustedBy: wl.trustedBy,
       createdAt: wl.createdAt,
       updatedAt: wl.updatedAt,
     },
+    content,
   });
 }
 
+// ──────────────────────────────────────────────────────────────
+// PATCH  /api/waitlists/[id]/content
+// ──────────────────────────────────────────────────────────────
 export async function PATCH(req: NextRequest, context: unknown) {
-  const { id } = (context as { params: { id: string } }).params;
-
+  const { id } = await (context as { params: { id: string } }).params;
   const session = await getServerSession(authOptions);
+
   if (!session?.user?.id) {
     return NextResponse.json({ ok: false, error: { message: "Unauthorized" } }, { status: 401 });
   }
 
-  const wl = await prisma.waitlist.findUnique({
-    where: { id },
-    select: { ownerId: true, slug: true },
-  });
-  if (!wl || wl.ownerId !== session.user.id) {
+  const waitlist = await prisma.waitlist.findUnique({ where: { id } });
+  if (!waitlist || waitlist.ownerId !== session.user.id) {
     return NextResponse.json({ ok: false, error: { message: "Not found" } }, { status: 404 });
   }
 
   const body = await req.json();
-  const parsed = PatchSchema.safeParse(body);
+  const parsed = ContentSchema.safeParse(body);
   if (!parsed.success) {
     const msg = parsed.error.issues[0]?.message ?? "Invalid payload";
     return NextResponse.json({ ok: false, error: { message: msg } }, { status: 400 });
   }
 
-  const { title, bioHtml, aboutHtml, slug, thumbnailUrl, trustedBy } = parsed.data; // ✅ added
+  const { media, bannerVideoUrl, benefits, socials, faqs } = parsed.data;
 
-  // Slug uniqueness
-  if (slug) {
-    const existing = await prisma.waitlist.findFirst({
-      where: { slug, NOT: { id } },
-      select: { id: true },
-    });
-    if (existing) {
-      return NextResponse.json(
-        { ok: false, error: { message: "Slug already in use" } },
-        { status: 409 }
-      );
-    }
+  const tx: any[] = [
+    prisma.waitlist.update({ where: { id }, data: { bannerVideoUrl } }),
+    prisma.waitlistMedia.deleteMany({ where: { waitlistId: id } }),
+    prisma.waitlistMedia.createMany({
+      data: media.map((url, i) => ({
+        waitlistId: id,
+        kind: /\.(mp4|mov|avi|webm|ogg)$/i.test(url) ? "VIDEO" : "IMAGE",
+        url,
+        displayOrder: i,
+      })),
+    }),
+    prisma.waitlistBenefit.deleteMany({ where: { waitlistId: id } }),
+    prisma.waitlistBenefit.createMany({
+      data: benefits.map((text, i) => ({ waitlistId: id, text, displayOrder: i })),
+    }),
+    prisma.waitlistSocial.upsert({
+      where: { waitlistId: id },
+      update: {
+        websiteUrl: socials.website,
+        youtubeUrl: socials.youtube,
+        instagramUrl: socials.instagram,
+        linkedinUrl: socials.linkedin,
+        facebookUrl: socials.facebook,
+        xUrl: socials.x,
+      },
+      create: {
+        waitlistId: id,
+        websiteUrl: socials.website,
+        youtubeUrl: socials.youtube,
+        instagramUrl: socials.instagram,
+        linkedinUrl: socials.linkedin,
+        facebookUrl: socials.facebook,
+        xUrl: socials.x,
+      },
+    }),
+  ];
+
+  if (faqs) {
+    tx.push(prisma.waitlistFaq.deleteMany({ where: { waitlistId: id } }));
+    tx.push(
+      prisma.waitlistFaq.createMany({
+        data: faqs.map((f, i) => ({
+          waitlistId: id,
+          question: f.question,
+          answer: f.answer,
+          displayOrder: i,
+        })),
+      }),
+    );
   }
 
-  const updated = await prisma.waitlist.update({
-    where: { id },
-    data: {
-      title,
-      courseBio: bioHtml,
-      about: aboutHtml,
-      slug,
-      thumbnailUrl: thumbnailUrl || null,
-      trustedBy: trustedBy ?? null, // ✅ added
-    },
-    select: {
-      id: true,
-      title: true,
-      courseBio: true,
-      about: true,
-      slug: true,
-      thumbnailUrl: true,
-      trustedBy: true, // ✅ added
-      updatedAt: true,
-    },
-  });
-
-  // Onboarding progress + status
-  await prisma.$transaction([
+  tx.push(
     prisma.onboardingProgress.upsert({
       where: { userId: session.user.id },
-      update: { courseDone: true },
-      create: { userId: session.user.id, courseDone: true },
+      update: { contentDone: true },
+      create: { userId: session.user.id, contentDone: true },
     }),
-    prisma.user.update({
-      where: { id: session.user.id },
-      data: { onboardingStatus: "content" },
-      select: { id: true },
-    }),
-  ]);
+  );
 
-  return NextResponse.json({
-    ok: true,
-    waitlist: {
-      id: updated.id,
-      title: updated.title,
-      bioHtml: updated.courseBio ?? "",
-      aboutHtml: updated.about ?? "",
-      slug: updated.slug ?? "",
-      thumbnailUrl: updated.thumbnailUrl ?? "",
-      trustedBy: updated.trustedBy ?? null, // ✅ added
-      updatedAt: updated.updatedAt,
-    },
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { onboardingStatus: true },
   });
+  if (user?.onboardingStatus !== "completed") {
+    tx.push(
+      prisma.user.update({
+        where: { id: session.user.id },
+        data: { onboardingStatus: "price" },
+      }),
+    );
+  }
+
+  await prisma.$transaction(tx);
+
+  return NextResponse.json({ ok: true });
 }

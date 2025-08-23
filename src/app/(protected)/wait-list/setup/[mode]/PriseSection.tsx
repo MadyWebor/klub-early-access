@@ -30,7 +30,7 @@ const fromMinor = (minor?: number | null) =>
 // ──────────────────────────────────────────────────────────────
 // Component
 // ──────────────────────────────────────────────────────────────
-export default function PriceSection() {
+export default function PriceSection({status}:{status:string}) {
   const router = useRouter();
 
   const [waitlistId, setWaitlistId] = useState<string | null>(null);
@@ -166,7 +166,7 @@ export default function PriceSection() {
           </div>
 
           <div className="flex-1 relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#787878]">Rs.</span>
+            <span className={`absolute left-3 ${show('price')?'top-1/3':'top-1/2'} -translate-y-1/2 text-[#787878]`}>Rs.</span>
             <input
               type="text"
               inputMode="decimal"

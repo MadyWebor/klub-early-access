@@ -34,5 +34,5 @@ export default async function WaitListSetupPage({ params }: Props) {
     console.log("User can access this step");
   }
 
-  return <WaitListSetup name={user.name} image={user.image} handle={user.handle} />;
+  return <WaitListSetup name={user.name} image={user.image} handle={user.handle} status={userStatus} />;
 }

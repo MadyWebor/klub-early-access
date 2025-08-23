@@ -7,6 +7,7 @@ import {
   ProfileCreateSchema,
   ProfileUpdateSchema,
 } from "@/lib/validators/profile";
+import toast from "react-hot-toast";
 
 type Profile = {
   id: string;
@@ -23,46 +24,6 @@ type Profile = {
 type Field = "fullName" | "handle" | "bio" | "image";
 type Errors = Partial<Record<Field | "form", string>>;
 
-function Alert({
-  kind = "error",
-  message,
-  onClose,
-}: {
-  kind?: "error" | "success";
-  message: string;
-  onClose?: () => void;
-}) {
-  const isError = kind === "error";
-  return (
-    <div
-      role="alert"
-      aria-live="polite"
-      className={[
-        "mt-4 w-full rounded-xl border px-4 py-3 text-sm",
-        isError
-          ? "border-red-200 bg-red-50 text-red-800"
-          : "border-emerald-200 bg-emerald-50 text-emerald-800",
-      ].join(" ")}
-    >
-      <div className="flex items-start gap-3">
-        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border">
-          {isError ? "!" : "✓"}
-        </span>
-        <div className="flex-1">{message}</div>
-        {onClose ? (
-          <button
-            type="button"
-            onClick={onClose}
-            className="ml-2 rounded-md px-2 py-1 text-xs hover:bg-black/5"
-          >
-            Dismiss
-          </button>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 // simple helper to avoid `any` in catches
 function errorMessage(e: unknown, fallback: string) {
   if (e instanceof Error) return e.message;
@@ -71,8 +32,8 @@ function errorMessage(e: unknown, fallback: string) {
   return fallback;
 }
 
-export default function Profile() {
-  const router = useRouter();
+export default function Profile({status}:{status:string}) {
+  const router = useRouter()
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -88,17 +49,14 @@ export default function Profile() {
   const [bio, setBio] = useState("");
   const [image, setImage] = useState("");
 
-  // validation + alert state
+  // validation
   const [errors, setErrors] = useState<Errors>({});
-  const [alertMsg, setAlertMsg] = useState<string>(""); // general/server error
-  const [alertKind, setAlertKind] = useState<"error" | "success">("error");
   const [uploadingImage, setUploadingImage] = useState(false);
 
   async function uploadFileToStorage(file: File) {
     try {
       setUploading(true);
 
-      // 1) ask server for presigned URL
       const presignRes = await fetch("/api/uploads/presign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -114,7 +72,6 @@ export default function Profile() {
         throw new Error(presigned?.error?.message || "Failed to presign");
       }
 
-      // 2) PUT directly to storage
       const putRes = await fetch(presigned.uploadUrl, {
         method: "PUT",
         headers: { "Content-Type": file.type || "application/octet-stream" },
@@ -122,7 +79,6 @@ export default function Profile() {
       });
       if (!putRes.ok) throw new Error(`Upload failed with ${putRes.status}`);
 
-      // 3) Commit into DB (update User.image)
       const commitRes = await fetch("/api/uploads/commit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -138,20 +94,17 @@ export default function Profile() {
         throw new Error(committed?.error?.message || "Commit failed");
       }
 
-      // 4) update UI
       setImage(presigned.publicUrl);
       clearFieldError("image");
-      setAlertKind("success");
-      setAlertMsg("Image uploaded.");
+
+      toast.success("Profile saved successfully!");
     } catch (e: unknown) {
-      setAlertKind("error");
-      setAlertMsg(errorMessage(e, "Upload failed."));
+     toast.error("Something went wrong while saving.");
     } finally {
       setUploading(false);
     }
   }
 
-  // helper: clear one field error
   const clearFieldError = (field: Field) =>
     setErrors((e) => ({ ...e, [field]: undefined }));
 
@@ -175,8 +128,7 @@ export default function Profile() {
           setImage(p.image ?? "");
         }
       } catch (err: unknown) {
-        setAlertKind("error");
-        setAlertMsg(errorMessage(err, "Could not load your profile."));
+        toast.error(errorMessage(err, "Could not load your profile."))
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -188,8 +140,7 @@ export default function Profile() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setAlertMsg("");
-    setErrors({}); // reset
+    setErrors({});
 
     const payload = { fullName, handle, bio, image: image || undefined };
     const schema =
@@ -206,8 +157,7 @@ export default function Profile() {
         form: f.formErrors?.[0],
       });
       if (f.formErrors?.[0]) {
-        setAlertKind("error");
-        setAlertMsg(f.formErrors[0]);
+        toast.error(f.formErrors[0])
       }
       return;
     }
@@ -238,13 +188,12 @@ export default function Profile() {
 
       if (data.profile?.handle) setHandle(data.profile.handle);
 
-      const next: string = data.next ?? "/wait-list/setup/course";
-      setAlertKind("success");
-      setAlertMsg("Profile saved successfully.");
+      const next: string = status ==='completed'?'/dashboard':"/wait-list/setup/course";
+      toast.success("Profile saved successfully.")
+
       router.push(next);
     } catch (err: unknown) {
-      setAlertKind("error");
-      setAlertMsg(errorMessage(err, "Something went wrong while saving."));
+      toast.error(errorMessage(err, "Something went wrong while saving."))
     } finally {
       setSaving(false);
     }
@@ -283,13 +232,7 @@ export default function Profile() {
               Personalize how you will appear to people on Klub
             </p>
           </div>
-          {alertMsg ? (
-            <Alert
-              kind={alertKind}
-              message={alertMsg}
-              onClose={() => setAlertMsg("")}
-            />
-          ) : null}
+
           <div className="w-full flex justify-center">
             {!uploading ?<div className="relative w-[72px] h-[72px] sm:w-[85px] sm:h-[85px] border-2 rounded-[15px] border-[#000000] p-[2px] bg-white shadow">
                <>
@@ -438,7 +381,7 @@ export default function Profile() {
                 aria-invalid={!!errors.bio}
                 aria-describedby={errors.bio ? "bio-error" : undefined}
                 className={[
-                  "w-full h-[96px] sm:h-[110px] py-[10px] bg-white rounded-[15px] indent-5 text-[14px] font-[500] text-[#2A2A2A] border outline-none transition resize-none",
+                  "w-full h-[96px] sm:h-[110px] py-[15px] px-[20px] bg-white rounded-[15px] text-[14px] font-[500] text-[#2A2A2A] border outline-none transition resize-none",
                   errors.bio
                     ? "border-red-400 focus:border-red-500"
                     : "border-[#ECECEC] focus:border-[#0A5DBC]",
@@ -458,12 +401,12 @@ export default function Profile() {
             ) : null}
 
             <button
-              className="mt-1 w-full h-[44px] sm:h-[46px] bg-[#0A5DBC] rounded-[15px] flex items-center justify-center disabled:opacity-60"
+              className="cursor-pointer mt-1 w-full h-[44px] sm:h-[46px] bg-[#0A5DBC] rounded-[15px] flex items-center justify-center disabled:opacity-60"
               type="submit"
               disabled={loading || saving}
             >
               <span className="text-white font-[500] text-[15px] sm:text-[16px] leading-[24px]">
-                {saving ? "Saving..." : "Next"}
+                {saving ? "Saving..." : status ==='completed'?'Save':"Next"}
               </span>
             </button>
           </form>

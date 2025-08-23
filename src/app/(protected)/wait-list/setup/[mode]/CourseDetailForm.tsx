@@ -2,26 +2,21 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { stat } from 'fs';
 
-// ──────────────────────────────────────────────────────────────
-// Types
-// ──────────────────────────────────────────────────────────────
 export type CourseDetails = {
   title: string;
   bioHtml: string;
   aboutHtml: string;
   slug: string;
   thumbnailUrl?: string | null;
-  trustedBy?: number | null; // add this
+  trustedBy?: number | null;
 };
 
 type CourseErrors = Partial<
   Record<'title' | 'bioHtml' | 'aboutHtml' | 'slug' | 'thumbnailUrl' | 'trustedBy', string>
 >;
 
-// ──────────────────────────────────────────────────────────────
-// Tiny helpers
-// ──────────────────────────────────────────────────────────────
 async function jsonFetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const r = await fetch(input, { ...init, headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) } });
   const j = await r.json();
@@ -38,7 +33,6 @@ const stripHtml = (s: string) =>
     .replace(/\s+/g, ' ')
     .trim();
 
-// presign -> PUT -> commit, returns publicUrl
 async function uploadImageForWaitlist(file: File, waitlistId: string): Promise<string> {
   const presign = await jsonFetch<{
     ok: true; uploadUrl: string; publicUrl: string; key: string; context: { target: 'waitlist.media'; kind: 'IMAGE' | 'VIDEO'; waitlistId: string }
@@ -64,9 +58,6 @@ async function uploadImageForWaitlist(file: File, waitlistId: string): Promise<s
   return presign.publicUrl;
 }
 
-// ──────────────────────────────────────────────────────────────
-// Lightweight Rich Editor with inline error + highlight tool
-// ──────────────────────────────────────────────────────────────
 function Editor({
   label,
   html,
@@ -167,11 +158,11 @@ function Editor({
       <div className={`rounded-[12px] border overflow-hidden ${borderClass}`}>
         <div className="flex items-center gap-2 px-3 py-2 border-b border-[#ECECEC] bg-[#FAFAFA]">
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={highlight} disabled={disabled}
-            className="h-8 px-3 rounded-[10px] border border-[#ECECEC] text-[12px] disabled:opacity-50">
+            className=" cursor-pointer h-8 px-3 rounded-[10px] border border-[#ECECEC] text-[12px] disabled:opacity-50">
             Highlight
           </button>
           <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={clearHighlights} disabled={disabled}
-            className="h-8 px-3 rounded-[10px] border border-[#ECECEC] text-[12px] disabled:opacity-50">
+            className="cursor-pointer h-8 px-3 rounded-[10px] border border-[#ECECEC] text-[12px] disabled:opacity-50">
             Clear
           </button>
           <span className="ml-auto text-[11px] text-[#9a9a9a]">Only highlight is enabled</span>
@@ -207,20 +198,18 @@ function Editor({
         <p id={errId} className="mt-1 text-[12px] text-red-600">{error}</p>
       ) : (
         <p className="mt-1 text-[11px] text-[#9a9a9a]">
-          Highlighted spans are saved as <code className="rounded bg-[#f2f2f2] px-1">{'<mark data-hl="1">'} </code>.
         </p>
       )}
     </div>
   );
 }
 
-// ──────────────────────────────────────────────────────────────
-export default function CourseDetailsSection() {
+
+export default function CourseDetailsSection({ status }: { status: string }) {
   const router = useRouter();
   const [uploadingImage, setUploadingImage] = useState(false);
 
 
-  // waitlist identity + loading/saving flags
   const [waitlistId, setWaitlistId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -243,10 +232,12 @@ export default function CourseDetailsSection() {
     trustedBy: false,
   });
 
+  const [showErrors, setShowErrors] = useState(false);
+
   const setField = <K extends keyof CourseDetails>(k: K, v: CourseDetails[K]) => {
     setState((s) => ({ ...s, [k]: v }));
-    setTouched((t) => (t[k] ? t : { ...t, [k]: true }));
   };
+
 
   // hydrate from API (mine → details)
   useEffect(() => {
@@ -263,7 +254,7 @@ export default function CourseDetailsSection() {
         // Get details
         const got = await jsonFetch<{
           ok: true; waitlist: {
-            id: string; title?: string; bioHtml?: string; aboutHtml?: string; slug?: string; thumbnailUrl?: string | null;
+            id: string; title?: string; bioHtml?: string; aboutHtml?: string; slug?: string; thumbnailUrl?: string | null; trustedBy?:number | null
           }
         }>(`/api/waitlists/${mine.waitlist.id}`, { method: 'GET' });
         if (!alive) return;
@@ -274,11 +265,12 @@ export default function CourseDetailsSection() {
           aboutHtml: got.waitlist.aboutHtml ?? '',
           slug: got.waitlist.slug ?? '',
           thumbnailUrl: (got.waitlist.thumbnailUrl ?? '') as string,
+          trustedBy:got.waitlist.trustedBy ?? 0
         };
 
         // Only prefill if server has anything (so we don't clobber fresh edits)
         const hasAny =
-          !!next.title ||
+          stripHtml(next.title).length > 0 ||
           !!next.slug ||
           stripHtml(next.bioHtml).length > 0 ||
           stripHtml(next.aboutHtml).length > 0 ||
@@ -294,9 +286,41 @@ export default function CourseDetailsSection() {
     return () => { alive = false; };
   }, []);
 
+  const inputBorder = (hasError: boolean) =>
+    `w-full h-[84px] rounded-[12px] border px-3 py-2 text-[14px] outline-none resize-none ${hasError
+      ? 'border-red-300 ring-2 ring-red-200'
+      : 'border-[#ECECEC] focus:ring-2 focus:ring-[#0A5DBC]/20'
+    }`;
+
+  // Upload handler for thumbnail
+  const onPickFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    if (!waitlistId) return;
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      setUploadingImage(true);
+      const url = await uploadImageForWaitlist(f, waitlistId);
+      setField('thumbnailUrl', url);
+    } catch (err) {
+      console.error(err);
+      alert((err as Error).message || 'Failed to upload image');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Slug generator (very simple random string)
+  const randomSlug = () => {
+    const words = ['fit', 'health', 'mind', 'energy', 'course', 'life', 'wellness'];
+    const slug = `${words[Math.floor(Math.random() * words.length)]}-${Math.random().toString(36).substring(2, 6)
+      }`;
+    setField('slug', slug);
+  };
+
   const errors: CourseErrors = useMemo(() => {
     const e: CourseErrors = {};
-    if (!state.title || state.title.trim().length === 0) e.title = 'Course title is required.';
+    const title = stripHtml(state.title || '');
+    if (title.length === 0) e.title = 'Course title is required.';
 
     const bioText = stripHtml(state.bioHtml || '');
     if (bioText.length === 0) e.bioHtml = 'Course bio is required.';
@@ -314,7 +338,6 @@ export default function CourseDetailsSection() {
       e.thumbnailUrl = 'Course thumbnail is required.';
     }
 
-    // ✅ TrustedBy validation
     if (state.trustedBy === null || state.trustedBy === undefined || state.trustedBy < 1) {
       e.trustedBy = 'Enter a number ≥ 1';
     }
@@ -323,36 +346,18 @@ export default function CourseDetailsSection() {
   }, [state]);
 
   const isValid = Object.keys(errors).length === 0;
-  const showErr = (field: keyof CourseErrors) => !!errors[field] && !!touched[field as keyof CourseDetails];
 
-  // UI helpers
-  const inputBorder = (hasError: boolean) =>
-    `w-full h-[44px] rounded-[12px] px-3 text-[14px] outline-none border ${hasError ? 'border-red-300 ring-2 ring-red-200' : 'border-[#ECECEC] focus:ring-2 focus:ring-[#0A5DBC]/20'
-    }`;
+  // ✅ now errors only show after Save is pressed
+  const showErr = (field: keyof CourseErrors) => showErrors && !!errors[field];
 
-  const randomSlug = () => setField('slug', Math.random().toString(36).slice(2, 9));
+  // … inputBorder, randomSlug, onPickFile stay unchanged …
 
-  // file pick
-  const onPickFile: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
-    setTouched((t) => ({ ...t, thumbnailUrl: true }));
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      if (!waitlistId) throw new Error('Waitlist not ready');
-      setUploadingImage(true); // start loader
-      const url = await uploadImageForWaitlist(file, waitlistId);
-      setField('thumbnailUrl', url);
-    } catch (err) {
-      console.error(err);
-      alert((err as Error).message || 'Upload failed');
-    } finally {
-      setUploadingImage(false); // stop loader
-    }
-  };
+  const onSaveAndNext = async (isStatus:boolean) => {
+    // ✅ trigger error display
+    setShowErrors(true);
 
-  // save & go next
-  const onSaveAndNext = async () => {
     if (loading || saving || !isValid || !waitlistId) return;
+
     try {
       setSaving(true);
       await jsonFetch(`/api/waitlists/${waitlistId}`, {
@@ -363,11 +368,15 @@ export default function CourseDetailsSection() {
           aboutHtml: state.aboutHtml,
           slug: state.slug,
           thumbnailUrl: state.thumbnailUrl || '',
-          trustedBy: state.trustedBy ?? 0, // send number
+          trustedBy: state.trustedBy ?? 0,
         }),
       });
       router.refresh();
-      router.replace('/wait-list/setup/content');
+      if(!isStatus){
+        router.replace('/wait-list/setup/content');
+      }else{
+        router.replace('/wait-list/'+state.slug);
+      }
     } catch (e) {
       console.error(e);
       alert((e as Error).message || 'Failed to save');
@@ -376,7 +385,7 @@ export default function CourseDetailsSection() {
     }
   };
 
-  const onGoBack = () => router.push('/profile');
+  const onGoBack = () => {status === 'completed' ? router.push('/dashboard'): router.push('/profile') };
 
   if (loading) {
     return (
@@ -389,117 +398,7 @@ export default function CourseDetailsSection() {
 
   return (
     <form className="w-full h-full flex flex-col pb-4">
-      <div className='flex flex-col h-[90%] w-full overflow-y-auto overflow-x-hidden gap-4 sm:gap-6 pb-6'>
-        {/* <div> */}
-        <Editor
-          label="Course Title"
-          html={state.title}
-          onHtml={(v) => setField('title', v)}
-          placeholder="Your step by step guide to taking control of your health"
-          disabled={loading || saving}
-          error={showErr('title') ? errors.title : undefined}
-          onBlur={() => setTouched((t) => ({ ...t, title: true }))}
-        />
-        <div>
-          <label className="block text-[12px] text-[#787878] mb-2">Course Bio</label>
-          <textarea
-            disabled={loading || saving}
-            value={state.bioHtml}
-            onChange={(e) => setField('bioHtml', e.target.value)}
-            onBlur={() => setTouched((t) => ({ ...t, bioHtml: true }))}
-            placeholder="Your guide to getting rid of Acid Reflux in 30 days"
-            aria-invalid={showErr('bioHtml')}
-            aria-describedby={showErr('bioHtml') ? 'err-bioHtml' : undefined}
-            className={inputBorder(showErr('bioHtml'))}
-          />
-          {showErr('bioHtml') && (
-            <p id="err-bioHtml" className="mt-1 text-[12px] text-red-600">{errors.bioHtml}</p>
-          )}
-        </div>
-
-        <Editor
-          label="About Course"
-          html={state.aboutHtml}
-          onHtml={(v) => setField('aboutHtml', v)}
-          placeholder="Be one of the first to get exclusive, early-access to this groundbreaking course. Sign up now."
-          disabled={loading || saving}
-          error={showErr('aboutHtml') ? errors.aboutHtml : undefined}
-          onBlur={() => setTouched((t) => ({ ...t, aboutHtml: true }))}
-        />
-
-        <div>
-          <label className="block text-[12px] text-[#787878] mb-2">
-            Trusted By (number of people)
-          </label>
-          <div className="flex items-stretch">
-            <span className="select-none inline-flex items-center px-3 rounded-l-[12px] border border-r-0 border-[#ECECEC] bg-[#FAFAFA] text-[13px] text-[#787878]">
-              Trusted by
-            </span>
-            <input
-              type="number"
-              min={1}
-              disabled={loading || saving}
-              value={state.trustedBy ?? ''}
-              onChange={(e) => setField('trustedBy', e.target.value ? parseInt(e.target.value, 10) : null)}
-              onBlur={() => setTouched((t) => ({ ...t, trustedBy: true }))}
-              placeholder="1000"
-              aria-invalid={showErr('trustedBy')}
-              aria-describedby={showErr('trustedBy') ? 'err-trustedBy' : undefined}
-              className={`flex-1 h-[44px] rounded-none border border-l-0 border-r-0 px-3 text-[14px] outline-none
-    ${showErr('trustedBy')
-                  ? 'border-red-300 ring-2 ring-red-200'
-                  : 'border-[#ECECEC] focus:ring-2 focus:ring-[#0A5DBC]/20'
-                }
-    [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
-  `}
-            />
-            <span className="select-none inline-flex items-center px-3 rounded-r-[12px] border border-l-0 border-[#ECECEC] bg-[#FAFAFA] text-[13px] text-[#787878]">
-              people
-            </span>
-          </div>
-          {showErr("trustedBy") && (
-            <p id="err-trustedBy" className="mt-1 text-[12px] text-red-600">
-              {errors.trustedBy}
-            </p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-[12px] text-[#787878] mb-2">Slug (public URL for your waitlist page)</label>
-          <div className="flex items-stretch">
-            <span className="select-none inline-flex items-center px-3 rounded-l-[12px] border border-r-0 border-[#ECECEC] bg-[#FAFAFA] text-[13px] text-[#787878]">
-              {window.location.origin}/wait-list/
-            </span>
-            <input
-              disabled={loading || saving}
-              value={state.slug}
-              onChange={(e) => setField('slug', e.target.value.replace(/[^a-z0-9-]/g, '').toLowerCase())}
-              onBlur={() => setTouched((t) => ({ ...t, slug: true }))}
-              placeholder="fitwithdranjali"
-              aria-invalid={showErr('slug')}
-              aria-describedby={showErr('slug') ? 'err-slug' : undefined}
-              className={`flex-1 h-[44px] rounded-r-none border border-l-0 border-r-0 px-3 text-[14px] outline-none ${showErr('slug') ? 'border-red-300 ring-2 ring-red-200' : 'border-[#ECECEC] focus:ring-2 focus:ring-[#0A5DBC]/20'
-                }`}
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setTouched((t) => ({ ...t, slug: true }));
-                randomSlug();
-              }}
-              className="px-3 rounded-r-[12px] border border-l-0 border-[#ECECEC] bg-white"
-              title="Generate"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
-                <path d="M21 12a9 9 0 1 1-2.64-6.36" fill="none" stroke="currentColor" strokeWidth="1.5" />
-                <path d="M21 5v5h-5" fill="none" stroke="currentColor" strokeWidth="1.5" />
-              </svg>
-            </button>
-          </div>
-          {showErr('slug') && (
-            <p id="err-slug" className="mt-1 text-[12px] text-red-600">{errors.slug}</p>
-          )}
-        </div>
+      <div className='flex flex-col h-[90%] w-full overflow-y-auto overflow-x-hidden gap-4 sm:gap-6 p-3 pb-6'>
 
         <div>
           <label className="block text-[12px] text-[#787878] mb-2">Course Thumbnail</label>
@@ -542,7 +441,7 @@ export default function CourseDetailsSection() {
                 {state.thumbnailUrl ? (
                   <button
                     type="button"
-                    onClick={() => { setTouched((t) => ({ ...t, thumbnailUrl: true })); setField('thumbnailUrl', ''); }}
+                    onClick={() => { setField('thumbnailUrl', ''); }}
                     className="h-[36px] px-4 rounded-[10px] border border-[#ECECEC] text-[13px] text-red-600"
                   >
                     Remove
@@ -557,6 +456,120 @@ export default function CourseDetailsSection() {
           </div>
         </div>
 
+        {/* <div> */}
+        <Editor
+          label="Course Title"
+          html={state.title}
+          onHtml={(v) => setField('title', v)}
+          placeholder="Your step by step guide to taking control of your health"
+          disabled={loading || saving}
+          error={showErr('title') ? errors.title : undefined}
+        // onBlur={() => setTouched((t) => ({ ...t, title: true }))}
+        />
+        <div>
+          <label className="block text-[12px] text-[#787878] mb-2">Course Bio</label>
+          <textarea
+            disabled={loading || saving}
+            value={state.bioHtml}
+            onChange={(e) => setField('bioHtml', e.target.value)}
+            // onBlur={() => setTouched((t) => ({ ...t, bioHtml: true }))}
+            placeholder="Your guide to getting rid of Acid Reflux in 30 days"
+            aria-invalid={showErr('bioHtml')}
+            aria-describedby={showErr('bioHtml') ? 'err-bioHtml' : undefined}
+            className={inputBorder(showErr('bioHtml'))}
+          />
+          {showErr('bioHtml') && (
+            <p id="err-bioHtml" className="mt-1 text-[12px] text-red-600">{errors.bioHtml}</p>
+          )}
+        </div>
+
+        <Editor
+          label="About Course"
+          html={state.aboutHtml}
+          onHtml={(v) => setField('aboutHtml', v)}
+          placeholder="Be one of the first to get exclusive, early-access to this groundbreaking course. Sign up now."
+          disabled={loading || saving}
+          error={showErr('aboutHtml') ? errors.aboutHtml : undefined}
+        // onBlur={() => setTouched((t) => ({ ...t, aboutHtml: true }))}
+        />
+
+        <div>
+          <label className="block text-[12px] text-[#787878] mb-2">
+            Trusted By (number of people)
+          </label>
+          <div className="flex items-stretch">
+            {/* <span className="select-none inline-flex items-center px-3 rounded-l-[12px] border border-r-0 border-[#ECECEC] bg-[#FAFAFA] text-[13px] text-[#787878]">
+              Trusted by
+            </span> */}
+            <input
+              type="number"
+              min={1}
+              disabled={loading || saving}
+              value={state.trustedBy ?? ''}
+              onChange={(e) => setField('trustedBy', e.target.value ? parseInt(e.target.value, 10) : null)}
+              // onBlur={() => setTouched((t) => ({ ...t, trustedBy: true }))}
+              placeholder="1000"
+              aria-invalid={showErr('trustedBy')}
+              aria-describedby={showErr('trustedBy') ? 'err-trustedBy' : undefined}
+              className={`flex-1 h-[44px] border rounded-[12px] px-3 text-[14px] outline-none
+    ${showErr('trustedBy')
+                  ? 'border-red-300 ring-2 ring-red-200'
+                  : 'border-[#ECECEC] focus:ring-2 focus:ring-[#0A5DBC]/20'
+                }
+    [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none
+  `}
+            />
+            {/* <span className="select-none inline-flex items-center px-3 rounded-r-[12px] border border-l-0 border-[#ECECEC] bg-[#FAFAFA] text-[13px] text-[#787878]">
+              people
+            </span> */}
+          </div>
+          {showErr("trustedBy") && (
+            <p id="err-trustedBy" className="mt-1 text-[12px] text-red-600">
+              {errors.trustedBy}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-[12px] text-[#787878] mb-2">Slug (public URL for your waitlist page)</label>
+          <label className="block  sm:hidden text-[11px] text-[#787878] mb-2 bg-[#FAFAFA] w-fit p-1">{window.location.origin}/wait-list/</label>
+          <div className="flex items-stretch">
+            <span className="hidden sm:inline-flex select-none items-center px-3 rounded-l-[12px] border border-r-0 border-[#ECECEC] bg-[#FAFAFA] text-[13px] text-[#787878]">
+              {window.location.origin}/wait-list/
+            </span>
+              <input
+              disabled={loading || saving}
+              value={state.slug}
+              onChange={(e) => setField('slug', e.target.value.replace(/[^a-z0-9-]/g, '').toLowerCase())}
+              // onBlur={() => setTouched((t) => ({ ...t, slug: true }))}
+              placeholder="fitwithdranjali"
+              aria-invalid={showErr('slug')}
+              aria-describedby={showErr('slug') ? 'err-slug' : undefined}
+              className={`flex-1 h-[44px] rounded-l-[12px] sm:rounded-l-none sm:rounded-r-none border sm:border-l-0 border-r-0 px-3 text-[14px] outline-none ${showErr('slug') ? 'border-red-300 ring-2 ring-red-200' : 'border-[#ECECEC] focus:ring-2 focus:ring-[#0A5DBC]/20'
+                }`}
+            />
+          
+            <button
+              type="button"
+              onClick={() => {
+                setTouched((t) => ({ ...t, slug: true }));
+                randomSlug();
+              }}
+              className="px-3 rounded-r-[12px] border border-l-0 border-[#ECECEC] bg-white"
+              title="Generate"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden>
+                <path d="M21 12a9 9 0 1 1-2.64-6.36" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M21 5v5h-5" fill="none" stroke="currentColor" strokeWidth="1.5" />
+              </svg>
+            </button>
+          </div>
+          {showErr('slug') && (
+            <p id="err-slug" className="mt-1 text-[12px] text-red-600">{errors.slug}</p>
+          )}
+        </div>
+
+
       </div>
       <div className='flex justify-end w-full h-[10%] border-t border-[#ECECEC] gap-4'>
         <div className='flex flex-col justify-center items-center '>
@@ -568,12 +581,25 @@ export default function CourseDetailsSection() {
             Go back
           </button>
         </div>
+         <div className='flex flex-col justify-center items-center'>
+         {status === 'completed'&&<button
+            type="button"
+            onClick={()=>onSaveAndNext(true)}
+            disabled={loading || saving}
+            // disabled={loading || saving || !isValid || !waitlistId}
+            className={`w-[110px] sm:w-[126px] h-[35px] sm:h-[44px] rounded-[10px] sm:rounded-[15px] flex items-center justify-center text-white text-[14px] sm:text-[16px] font-[500] leading-[24px] ${loading || saving ? 'bg-[#0A5DBC]/60 cursor-not-allowed' : 'bg-[#0A5DBC]'
+              }`}
+          >
+            {saving ? 'Publishing...' : 'Publish'}
+          </button>}
+        </div>
         <div className='flex flex-col justify-center items-center'>
           <button
             type="button"
-            onClick={onSaveAndNext}
-            disabled={loading || saving || !isValid || !waitlistId}
-            className={`w-[110px] sm:w-[126px] h-[35px] sm:h-[44px] rounded-[10px] sm:rounded-[15px] flex items-center justify-center text-white text-[14px] sm:text-[16px] font-[500] leading-[24px] ${loading || saving || !isValid || !waitlistId ? 'bg-[#0A5DBC]/60 cursor-not-allowed' : 'bg-[#0A5DBC]'
+            onClick={()=>onSaveAndNext(false)}
+            disabled={loading || saving}
+            // disabled={loading || saving || !isValid || !waitlistId}
+            className={`w-[110px] sm:w-[126px] h-[35px] sm:h-[44px] rounded-[10px] sm:rounded-[15px] flex items-center justify-center text-white text-[14px] sm:text-[16px] font-[500] leading-[24px] ${loading || saving ? 'bg-[#0A5DBC]/60 cursor-not-allowed' : 'bg-[#0A5DBC]'
               }`}
           >
             {saving ? 'Saving…' : 'Save & Next'}

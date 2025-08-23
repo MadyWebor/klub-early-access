@@ -9,7 +9,11 @@ import { NextRequest, NextResponse } from "next/server";
 // ──────────────────────────────────────────────────────────────
 // Validation for PATCH
 // ──────────────────────────────────────────────────────────────
-const urlField = z.string().trim().refine(v => /^https?:\/\//i.test(v), "Must be a valid URL (include http(s)://)").url();
+const urlField = z
+  .string()
+  .trim()
+  .refine(v => /^https?:\/\//i.test(v), "Must be a valid URL (include http(s)://)")
+  .url();
 
 const ContentSchema = z.object({
   media: z.array(z.string().url()).min(1, "At least one media file is required."),
@@ -23,10 +27,14 @@ const ContentSchema = z.object({
     facebook: urlField,
     x: urlField,
   }),
-  faqs: z.array(z.object({ question: z.string().min(1), answer: z.string().min(1) }))
-       .min(1, "At least one FAQ is required."),
+  faqs: z
+    .array(z.object({ question: z.string().min(1), answer: z.string().min(1) }))
+    .optional(),
 });
 
+// ──────────────────────────────────────────────────────────────
+// GET  /api/waitlists/[id]/content
+// ──────────────────────────────────────────────────────────────
 // ──────────────────────────────────────────────────────────────
 // GET  /api/waitlists/[id]/content
 // ──────────────────────────────────────────────────────────────
@@ -39,7 +47,7 @@ export async function GET(_req: NextRequest, context: unknown) {
 
   const waitlist = await prisma.waitlist.findUnique({
     where: { id },
-    select: { id: true, ownerId: true, bannerVideoUrl: true, }
+    select: { id: true, ownerId: true, bannerVideoUrl: true, slug: true }, // 👈 added slug
   });
 
   if (!waitlist || waitlist.ownerId !== session.user.id) {
@@ -76,6 +84,7 @@ export async function GET(_req: NextRequest, context: unknown) {
   ]);
 
   const content = {
+    slug: waitlist.slug, // 👈 include slug in response
     media: mediaRows.map(m => m.url),
     bannerVideoUrl: waitlist.bannerVideoUrl ?? null,
     benefits: benefitRows.map(b => b.text),
@@ -95,11 +104,12 @@ export async function GET(_req: NextRequest, context: unknown) {
   return NextResponse.json({ ok: true, content });
 }
 
+
 // ──────────────────────────────────────────────────────────────
 // PATCH  /api/waitlists/[id]/content
 // ──────────────────────────────────────────────────────────────
 export async function PATCH(req: NextRequest, context: unknown) {
-  const { id } =  await (context as { params: { id: string } }).params;
+  const { id } = await (context as { params: { id: string } }).params;
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -111,9 +121,7 @@ export async function PATCH(req: NextRequest, context: unknown) {
     return NextResponse.json({ ok: false, error: { message: "Not found" } }, { status: 404 });
   }
 
-
   const body = await req.json();
-  console.log(body)
   const parsed = ContentSchema.safeParse(body);
   if (!parsed.success) {
     const msg = parsed.error.issues[0]?.message ?? "Invalid payload";
@@ -122,8 +130,8 @@ export async function PATCH(req: NextRequest, context: unknown) {
 
   const { media, bannerVideoUrl, benefits, socials, faqs } = parsed.data;
 
-  await prisma.$transaction([
-    prisma.waitlist.update({ where: { id }, data: { bannerVideoUrl  } }),
+  const tx: any[] = [
+    prisma.waitlist.update({ where: { id }, data: { bannerVideoUrl } }),
     prisma.waitlistMedia.deleteMany({ where: { waitlistId: id } }),
     prisma.waitlistMedia.createMany({
       data: media.map((url, i) => ({
@@ -157,24 +165,45 @@ export async function PATCH(req: NextRequest, context: unknown) {
         xUrl: socials.x,
       },
     }),
-    prisma.waitlistFaq.deleteMany({ where: { waitlistId: id } }),
-    prisma.waitlistFaq.createMany({
-      data: faqs.map((f, i) => ({
-        waitlistId: id,
-        question: f.question,
-        answer: f.answer,
-        displayOrder: i,
-      })),
-    }),
+  ];
+
+  if (faqs) {
+    tx.push(prisma.waitlistFaq.deleteMany({ where: { waitlistId: id } }));
+    tx.push(
+      prisma.waitlistFaq.createMany({
+        data: faqs.map((f, i) => ({
+          waitlistId: id,
+          question: f.question,
+          answer: f.answer,
+          displayOrder: i,
+        })),
+      }),
+    );
+  }
+
+  tx.push(
     prisma.onboardingProgress.upsert({
       where: { userId: session.user.id },
       update: { contentDone: true },
       create: { userId: session.user.id, contentDone: true },
     }),
-    prisma.user.update({
-      where: { id: session.user.id },
-      data: { onboardingStatus: "price" },
-    }),
-  ]);
+  );
+
+  // Only update status if not already "completed"
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { onboardingStatus: true },
+  });
+  if (user?.onboardingStatus !== "completed") {
+    tx.push(
+      prisma.user.update({
+        where: { id: session.user.id },
+        data: { onboardingStatus: "price" },
+      }),
+    );
+  }
+
+  await prisma.$transaction(tx);
+
   return NextResponse.json({ ok: true });
 }

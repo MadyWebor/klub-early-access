@@ -10,6 +10,7 @@ import { FaQuestion } from "react-icons/fa6";
 import BannerCarousel from './Carousel';
 import ModalWaitlist from './SuccessModal';
 import ModalWaitlistFailed from './ModalWaitListFailed';
+import ModalWaitlistConfirm from './ModalWidthListConfirm';
 
 
 type RazorpayPaymentResponse = {
@@ -113,11 +114,13 @@ const WaitList: React.FC<Props> = ({
         });
         return `Launching on ${formatted}`;
     }, [launchDate]);
+    const [errorMsg, setErrorMsg] = useState("");
     const [email, setEmail] = useState("");
     const [loading, setLoading] = useState(false);
     const [successOpen, setSuccessOpen] = useState(false);
     const [failedOpen, setFailedOpen] = useState(false);
-
+    const [fullName, setFullName] = useState("");
+    const [confirmModalOpen, setConfirmModalOpen] = useState(false);
     const [openIdx, setOpenIdx] = React.useState<number | null>(null);
     const toggle = (i: number) => setOpenIdx(prev => (prev === i ? null : i));
 
@@ -132,23 +135,27 @@ const WaitList: React.FC<Props> = ({
     };
 
 
-type RazorpayOrder = {
-    id: string;
-    amount: number;
-    currency: string;
-};
+    type RazorpayOrder = {
+        id: string;
+        amount: number;
+        currency: string;
+    };
 
 
 
-// Extend Window safely
+    // Extend Window safely
 
 
-const handleSubscribe = async () => {
-    if (!email) return alert("Enter your email");
+    const handleSubscribe = async () => {
+    if (!email) {
+        setErrorMsg("Please enter your email");
+        return;
+    }
+
+    setErrorMsg(""); // clear previous error
     setLoading(true);
 
     try {
-        // 1️⃣ Create subscriber & order
         const res = await fetch("/api/subscribers", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -163,7 +170,6 @@ const handleSubscribe = async () => {
             return;
         }
 
-        // 2️⃣ Load Razorpay script
         const loaded = await loadRazorpayScript();
         if (!loaded || !window.Razorpay) {
             setFailedOpen(true);
@@ -171,7 +177,6 @@ const handleSubscribe = async () => {
             return;
         }
 
-        // 3️⃣ Open Razorpay checkout
         const rzp = new window.Razorpay({
             key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
             amount: data.order.amount,
@@ -204,6 +209,7 @@ const handleSubscribe = async () => {
         setLoading(false);
     }
 };
+
 
     return <div className='w-screen h-screen overflow-hidden flex flex-col bg-[#F6F6F6]'>
         <ModalWaitlist open={successOpen} onClose={() => setSuccessOpen(false)} />
@@ -290,27 +296,28 @@ const handleSubscribe = async () => {
                     )}
                 </div>
 
-                <div className="w-full flex justify-center mt-3 sm:mt-[15px] text-[#787878] px-4">
-                    <div className="w-full sm:w-auto relative">
-                        <input
-                            type="email"
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="w-full sm:w-[400px] md:w-[450px] h-[76px] sm:h-[70px] md:h-[82px] rounded-[40px] sm:rounded-[50px] md:rounded-[60px] bg-white indent-4 sm:indent-6 md:indent-7 border border-[#ECECEC] focus:outline-none focus:ring-2 focus:ring-[#0A5DBC]/40 placeholder:text-sm sm:placeholder:text-base"
-                            placeholder="Please enter your email..."
-                        />
-                        <div className="flex flex-col justify-center items-center h-[76px] sm:h-[70px] md:h-[82px] absolute top-0 right-2 sm:right-2 md:right-3">
-                            <button
-                                type='button'
-                                className="text-white bg-[#0A5DBC] h-[50px] sm:h-[46px] md:h-[50px] px-4 sm:px-[18px] md:px-[20px] text-sm sm:text-[14px] font-normal flex justify-center items-center rounded-full shadow-md hover:bg-[#094c9a] transition gap-2"
-                                onClick={handleSubscribe}
-                                disabled={loading}
-                            >
-                                {loading ? "Joining..." : buttonLabel}
-                                <BsVectorPen className='w-[18px] h-[18px]' />
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            <div className="w-full flex justify-center mt-3 sm:mt-[15px] text-[#787878] px-4">
+    <div className="w-full sm:w-auto relative">
+        <input
+            type="email"
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full sm:w-[400px] md:w-[450px] h-[76px] sm:h-[70px] md:h-[82px] rounded-[40px] sm:rounded-[50px] md:rounded-[60px] bg-white indent-4 sm:indent-6 md:indent-7 border border-[#ECECEC] focus:outline-none focus:ring-2 focus:ring-[#0A5DBC]/40 placeholder:text-sm sm:placeholder:text-base"
+            placeholder="Please enter your email..."
+        />
+        <div className="flex flex-col justify-center items-center h-[76px] sm:h-[70px] md:h-[82px] absolute top-0 right-2 sm:right-2 md:right-3">
+            <button
+                type='button'
+                className="text-white bg-[#0A5DBC] h-[50px] sm:h-[46px] md:h-[50px] px-4 sm:px-[18px] md:px-[20px] text-sm sm:text-[14px] font-normal flex justify-center items-center rounded-full shadow-md hover:bg-[#094c9a] transition gap-2"
+                onClick={() => setConfirmModalOpen(true)}
+                disabled={loading}
+            >
+                {loading ? "Joining..." : buttonLabel}
+                <BsVectorPen className='w-[18px] h-[18px]' />
+            </button>
+        </div>
+        {errorMsg && <p className="mt-1 text-red-500 text-sm">{errorMsg}</p>}
+    </div>
+</div>
 
                 <div className="w-full flex justify-center mt-[10px]">
                     <div className="flex items-center gap-3">
@@ -400,7 +407,7 @@ const handleSubscribe = async () => {
                             </div>
                         </div>
 
-                        <div className="flex flex-col mt-[30px] w-full">
+                        {faqs.length > 0 && <div className="flex flex-col mt-[30px] w-full">
                             <div className="inline-flex items-center h-8 sm:h-9 md:h-[35px] px-3 sm:px-[10px] md:px-[12px] py-1 sm:py-1.5 md:py-[6px] bg-white border border-[#ECECEC] rounded-[30px] gap-1.5 sm:gap-2 md:gap-[6px] shadow-[0px_8px_16px_0px_#2A2A2A0D] w-fit mt-[30px]">
                                 <FaQuestion className="w-[16px] h-[16px] fill-[#0A5DBC] stroke-1 stroke-[#0A5DBC]" />
                                 <span className="text-[14px] sm:text-[15px] md:text-[16px] font-normal">FAQs</span>
@@ -432,9 +439,9 @@ const handleSubscribe = async () => {
                                     );
                                 })}
                             </div>
-                        </div>
+                        </div>}
 
-                        <div className="inline-flex items-center h-8 sm:h-9 md:h-[35px] px-3 sm:px-[10px] md:px-[12px] py-1 sm:py-1.5 md:py-[6px] bg-white border border-[#ECECEC] rounded-[30px] gap-1.5 sm:gap-2 md:gap-[6px] shadow-[0px_8px_16px_0px_#2A2A2A0D] w-fit mt-[70px]">
+                        <div className="inline-flex items-center h-8 sm:h-9 md:h-[35px] px-3 sm:px-[10px] md:px-[12px] py-1 sm:py-1.5 md:py-[6px] bg-white border border-[#ECECEC] rounded-[30px] gap-1.5 sm:gap-2 md:gap-[6px] shadow-[0px_8px_16px_0px_#2A2A2A0D] w-fit mt-[50px]">
                             <FaRegUserCircle className='w-[18px] h-[18px] fill-[#0A5DBC]' />
                             <span className="text-[14px] sm:text-[15px] md:text-[16px] font-normal">Socials</span>
                         </div>
@@ -468,6 +475,13 @@ const handleSubscribe = async () => {
                 @2025, Klub
             </div>
         </div>
+        <ModalWaitlistConfirm
+  open={confirmModalOpen}
+  onClose={() => setConfirmModalOpen(false)}
+  email={email}
+  fullName={fullName}
+  onConfirm={handleSubscribe}
+/>
     </div>
 }
 

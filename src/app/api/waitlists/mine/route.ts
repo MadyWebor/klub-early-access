@@ -15,14 +15,14 @@ export async function GET() {
   const existing = await prisma.waitlist.findFirst({
     where: { ownerId: session.user.id },
     orderBy: { createdAt: 'desc' },
-    select: { id: true },
+    select: { id: true,slug:true },
   });
 
   if (existing) return NextResponse.json({ ok: true, waitlist: existing });
 
   const created = await prisma.waitlist.create({
     data: { ownerId: session.user.id, title: '', slug: null },
-    select: { id: true },
+    select: { id: true,slug:true },
   });
 
   return NextResponse.json({ ok: true, waitlist: created });

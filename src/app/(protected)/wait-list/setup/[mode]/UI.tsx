@@ -53,7 +53,7 @@ async function uploadImageForWaitlist(file: File, waitlistId: string): Promise<s
   return presign.publicUrl;
 }
 
-export default function WaitListSetupPage({ name, image, handle }: { name: string | null; image: string | null; handle: string | null; }) {
+export default function WaitListSetupPage({ name, image, handle, status }: { name: string | null; image: string | null; handle: string | null; status:string }) {
   const router = useRouter();
   const params = useParams();
 
@@ -167,11 +167,11 @@ export default function WaitListSetupPage({ name, image, handle }: { name: strin
 
             <div className='md:w-[70%] w-full h-[calc(100%-50px)] md:h-full pt-5'>
                             {mode === 'course' && (
-                <CourseDetailsForm />
+                <CourseDetailsForm status={status}/>
               )}
-              {mode === 'content' && <ContentSection />}
+              {mode === 'content' && <ContentSection status={status}/>}
               {
-                mode === 'price' && <PriceSection />}
+                mode === 'price' && <PriceSection  status={status}/>}
             </div>
           </div>
         </div>
